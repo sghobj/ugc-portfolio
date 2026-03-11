@@ -21,6 +21,34 @@ type UgcServicesBlock = {
   service?: UgcServiceEntry[] | null
 }
 
+type UgcMediaAsset = {
+  url?: string | null
+  alternativeText?: string | null
+  width?: number | null
+  height?: number | null
+  mime?: string | null
+}
+
+type UgcTagEntry = {
+  name?: string | null
+}
+
+type UgcWorkMediaEntry = {
+  id?: string | number | null
+  kind?: string | null
+  title?: string | null
+  description?: string | null
+  hook?: string | null
+  goal?: string | null
+  style?: string | null
+  categories?: UgcTagEntry[] | null
+  media?: UgcMediaAsset | null
+}
+
+type UgcWorkBlock = UgcTextBlock & {
+  media?: UgcWorkMediaEntry[] | null
+}
+
 type UgcPayload = {
   aboutMe?: UgcTextBlock | null
   hero?: {
@@ -29,14 +57,60 @@ type UgcPayload = {
     text?: string | null
   } | null
   myServices?: UgcServicesBlock | null
-  myWork?: UgcTextBlock | null
+  myWork?: UgcWorkBlock | null
 }
 
 type UgcQueryData = {
   ugc?: UgcPayload | null
 }
 
-const asString = (value: string | null | undefined): string => value?.trim() ?? ''
+const asString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
+
+const asNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' ? value : undefined
+
+const asMediaKind = (value: unknown): 'photo' | 'video' | '' => {
+  if (value === 'photo' || value === 'video') {
+    return value
+  }
+
+  return ''
+}
+
+const inferMediaKind = (
+  kind: 'photo' | 'video' | '',
+  mime: string,
+): 'photo' | 'video' | '' => {
+  if (kind) {
+    return kind
+  }
+
+  if (mime.startsWith('video/')) {
+    return 'video'
+  }
+
+  if (mime.startsWith('image/')) {
+    return 'photo'
+  }
+
+  return ''
+}
+
+const toAbsoluteUrl = (value: string): string => {
+  if (!value) {
+    return ''
+  }
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value
+  }
+
+  if (!env.strapiBaseUrl) {
+    return value
+  }
+
+  return `${env.strapiBaseUrl}${value.startsWith('/') ? value : `/${value}`}`
+}
 
 export type UgcHeroContent = {
   title: string
@@ -62,11 +136,34 @@ export type UgcServicesContent = {
   service: UgcServiceContent[]
 }
 
+export type UgcWorkMediaContent = {
+  id: string
+  kind: 'photo' | 'video' | ''
+  title: string
+  description: string
+  hook: string
+  goal: string
+  style: string
+  imageUrl: string
+  imageAlt: string
+  width?: number
+  height?: number
+  mime: string
+  categories: string[]
+}
+
+export type UgcWorkContent = {
+  sectionName: string
+  title: string
+  text: string
+  media: UgcWorkMediaContent[]
+}
+
 export type UgcContent = {
   aboutMe: UgcSectionContent
   hero: UgcHeroContent
   myServices: UgcServicesContent
-  myWork: UgcSectionContent
+  myWork: UgcWorkContent
 }
 
 type UseUgcContentResult = {
@@ -95,6 +192,7 @@ const emptyContent: UgcContent = {
     sectionName: '',
     title: '',
     text: '',
+    media: [],
   },
 }
 
@@ -128,6 +226,35 @@ const normalize = (ugc: UgcPayload | null | undefined): UgcContent => {
       sectionName: asString(ugc.myWork?.sectionName),
       title: asString(ugc.myWork?.title),
       text: asString(ugc.myWork?.text),
+      media:
+        ugc.myWork?.media
+          ?.map((entry, index) => {
+            const title = asString(entry?.title)
+            const description = asString(entry?.description)
+            const rawUrl = asString(entry?.media?.url)
+            const mime = asString(entry?.media?.mime).toLowerCase()
+            const kind = asMediaKind(entry?.kind)
+
+            return {
+              id: entry?.id != null ? String(entry.id) : `work-media-${index + 1}`,
+              kind: inferMediaKind(kind, mime),
+              title,
+              description,
+              hook: asString(entry?.hook),
+              goal: asString(entry?.goal),
+              style: asString(entry?.style),
+              imageUrl: toAbsoluteUrl(rawUrl),
+              imageAlt: asString(entry?.media?.alternativeText) || title || 'Portfolio media',
+              width: asNumber(entry?.media?.width),
+              height: asNumber(entry?.media?.height),
+              mime,
+              categories:
+                entry?.categories
+                  ?.map((tag) => asString(tag?.name))
+                  .filter((name) => name.length > 0) ?? [],
+            }
+          })
+          .filter((entry) => entry.imageUrl.length > 0) ?? [],
     },
   }
 }

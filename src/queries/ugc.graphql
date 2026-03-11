@@ -1,5 +1,5 @@
 query Ugc {
-    ugc {
+    ugc: ugcSecure {
         aboutMe {
             sectionName
             text
@@ -19,10 +19,29 @@ query Ugc {
                 id
             }
         }
-        myWork {
+        myWork: myPhotographyWork {
             sectionName
             text
             title
+            media {
+                id
+                kind
+                title
+                description
+                hook
+                goal
+                style
+                categories {
+                    name
+                }
+                media {
+                    url
+                    alternativeText
+                    width
+                    height
+                    mime
+                }
+            }
         }
     }
 }

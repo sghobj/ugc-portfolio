@@ -139,7 +139,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                     </motion.div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+                <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-3 lg:gap-8">
                     {cmsPackages.map((pkg, i) => (
                         <motion.div
                             key={pkg.id}
@@ -147,7 +147,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.6, delay: i * 0.1 }}
-                            className={`p-8 lg:p-10 border transition-all duration-300 hover:-translate-y-1 ${
+                            className={`flex h-full flex-col border p-8 transition-all duration-300 hover:-translate-y-1 lg:p-10 ${
                                 pkg.featured
                                     ? "bg-foreground text-primary-foreground border-foreground"
                                     : "bg-background border-border hover:border-accent"
@@ -155,37 +155,39 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                         >
                             <pkg.icon className="w-6 h-6 mb-6 text-accent" strokeWidth={1.5} />
                             {pkg.name && <h3 className="font-display text-2xl mb-3">{pkg.name}</h3>}
-                            {pkg.description && (
-                                <p
-                                    className={`font-body text-sm leading-relaxed mb-6 ${
-                                        pkg.featured
-                                            ? "text-primary-foreground/70"
-                                            : "text-muted-foreground"
-                                    }`}
-                                >
-                                    {pkg.description}
-                                </p>
-                            )}
-                            {pkg.includes.length > 0 && (
-                                <ul className="space-y-2">
-                                    {pkg.includes.map((item) => (
-                                        <li
-                                            key={item}
-                                            className={`font-body text-sm flex items-center gap-2 ${
-                                                pkg.featured
-                                                    ? "text-primary-foreground/80"
-                                                    : "text-muted-foreground"
-                                            }`}
-                                        >
-                                            <span className="w-1 h-1 rounded-full bg-accent flex-shrink-0" />
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                            <div className="flex-1">
+                                {pkg.description && (
+                                    <p
+                                        className={`font-body text-sm leading-relaxed mb-6 ${
+                                            pkg.featured
+                                                ? "text-primary-foreground/70"
+                                                : "text-muted-foreground"
+                                        }`}
+                                    >
+                                        {pkg.description}
+                                    </p>
+                                )}
+                                {pkg.includes.length > 0 && (
+                                    <ul className="space-y-2">
+                                        {pkg.includes.map((item) => (
+                                            <li
+                                                key={item}
+                                                className={`font-body text-sm flex items-center gap-2 ${
+                                                    pkg.featured
+                                                        ? "text-primary-foreground/80"
+                                                        : "text-muted-foreground"
+                                                }`}
+                                            >
+                                                <span className="w-1 h-1 rounded-full bg-accent flex-shrink-0" />
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                             <a
                                 href="#contact"
-                                className={`inline-block mt-8 font-body text-sm tracking-wider uppercase px-6 py-3 transition-all ${
+                                className={`mt-8 inline-block self-start px-6 py-3 font-body text-sm uppercase tracking-wider transition-all ${
                                     pkg.featured
                                         ? "bg-accent text-accent-foreground hover:opacity-80"
                                         : "border border-foreground text-foreground hover:bg-foreground hover:text-background"
