@@ -1,0 +1,28 @@
+query Ugc {
+    ugc {
+        aboutMe {
+            sectionName
+            text
+            title
+        }
+        hero {
+            name
+            text
+            title
+        }
+        myServices {
+            sectionName
+            title
+            service {
+                iconName
+                serviceDetails
+                id
+            }
+        }
+        myWork {
+            sectionName
+            text
+            title
+        }
+    }
+}
