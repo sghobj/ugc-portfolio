@@ -1,5 +1,6 @@
 import { env } from '@/config/env'
 import type { PortfolioClient } from '@/lib/api/clients/portfolioClient'
+import { resolveStrapiAssetUrl } from '@/lib/strapiAssetUrl'
 import type {
   MediaAsset,
   PhotoCategory,
@@ -135,29 +136,12 @@ const unwrapFirstMediaRecord = (value: unknown): Record<string, unknown> | undef
   return record
 }
 
-const toAbsoluteUrl = (value: string): string => {
-  if (!value) {
-    return ''
-  }
-
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value
-  }
-
-  if (!env.strapiBaseUrl) {
-    return value
-  }
-
-  const prefixed = value.startsWith('/') ? value : `/${value}`
-  return `${env.strapiBaseUrl}${prefixed}`
-}
-
 const extractMedia = (value: unknown, fallbackAlt: string): MediaAsset => {
   const media = unwrapFirstMediaRecord(value)
   const rawUrl = asString(media?.url)
 
   return {
-    url: toAbsoluteUrl(rawUrl),
+    url: resolveStrapiAssetUrl(rawUrl, env.strapiBaseUrl),
     alt: asString(media?.alternativeText, fallbackAlt),
     width: asNumber(media?.width),
     height: asNumber(media?.height),

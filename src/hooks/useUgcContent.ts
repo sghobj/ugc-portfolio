@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@apollo/client/react'
 import { env } from '@/config/env'
+import { resolveStrapiAssetUrl } from '@/lib/strapiAssetUrl'
 import { UGC_QUERY } from '@/queries/ugcQuery'
 
 type UgcTextBlock = {
@@ -94,22 +95,6 @@ const inferMediaKind = (
   }
 
   return ''
-}
-
-const toAbsoluteUrl = (value: string): string => {
-  if (!value) {
-    return ''
-  }
-
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value
-  }
-
-  if (!env.strapiBaseUrl) {
-    return value
-  }
-
-  return `${env.strapiBaseUrl}${value.startsWith('/') ? value : `/${value}`}`
 }
 
 export type UgcHeroContent = {
@@ -243,7 +228,7 @@ const normalize = (ugc: UgcPayload | null | undefined): UgcContent => {
               hook: asString(entry?.hook),
               goal: asString(entry?.goal),
               style: asString(entry?.style),
-              imageUrl: toAbsoluteUrl(rawUrl),
+              imageUrl: resolveStrapiAssetUrl(rawUrl, env.strapiBaseUrl),
               imageAlt: asString(entry?.media?.alternativeText) || title || 'Portfolio media',
               width: asNumber(entry?.media?.width),
               height: asNumber(entry?.media?.height),

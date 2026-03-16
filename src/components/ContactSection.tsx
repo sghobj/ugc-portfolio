@@ -23,7 +23,7 @@ const ContactSection = () => {
     content that makes your audience stop scrolling.
     </p>
     <a
-    href="mailto:hello@sarahghobj.com"
+    href="mailto:sarah.ghobj@hotmail.com"
     className="inline-flex items-center gap-2 bg-accent text-accent-foreground font-body text-sm tracking-wider uppercase px-10 py-4 hover:opacity-80 transition-opacity"
         >
         Get In Touch
@@ -32,7 +32,7 @@ const ContactSection = () => {
 
         <div className="flex items-center justify-center gap-8 mt-16 pt-8 border-t border-primary-foreground/10">
     <a
-        href="https://instagram.com"
+        href="https://instagram.com/sarah_ghobj"
     target="_blank"
     rel="noopener noreferrer"
     className="flex items-center gap-2 font-body text-sm text-primary-foreground/50 hover:text-accent transition-colors"
@@ -41,7 +41,7 @@ const ContactSection = () => {
         Instagram
         </a>
         <a
-    href="mailto:hello@sarahghobj.com"
+    href="mailto:sarah.ghobj@hotmail.com"
     className="flex items-center gap-2 font-body text-sm text-primary-foreground/50 hover:text-accent transition-colors"
     >
     <Mail className="w-4 h-4" />
