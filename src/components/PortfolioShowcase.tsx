@@ -10,7 +10,6 @@ import type {
     UgcWorkContent,
     UgcWorkMediaContent,
 } from "@/hooks/useUgcContent";
-import { mockPortfolioData } from "@/data/mockPortfolioData";
 import { buildCloudinaryImageUrl, isCloudinaryUrl } from "@/lib/cloudinary";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 
@@ -95,10 +94,7 @@ const slugify = (value: string): string => {
         .replace(/(^-|-$)+/g, "");
 };
 
-const trimOrFallback = (value: string, fallback: string): string => {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : fallback;
-};
+const trimOrEmpty = (value: string): string => value.trim();
 
 const dedupe = (values: string[]): string[] => {
     return Array.from(new Set(values.filter((value) => value.length > 0)));
@@ -227,6 +223,13 @@ const getImageSizes = (url: string): string | undefined => {
     return IMAGE_SIZES;
 };
 
+const hasMediaSource = (
+    entry: Pick<StoryMedia, "mediaUrl" | "previewUrl" | "embedUrl" | "playbackUrl" | "thumbnailUrl">,
+): boolean =>
+    [entry.mediaUrl, entry.previewUrl, entry.embedUrl, entry.playbackUrl, entry.thumbnailUrl].some(
+        (value) => value.trim().length > 0,
+    );
+
 const resolveStoryTrack = (
     categories: string[],
     title: string,
@@ -250,23 +253,16 @@ const resolveStoryTrack = (
         }
     }
 
-    if (categories.length > 0) {
-        return toTitleCase(categories[0]);
-    }
-
-    return "Signature Campaigns";
+    return categories.length > 0 ? toTitleCase(categories[0]) : "";
 };
 
 const toStoryMediaFromCms = (entry: UgcWorkMediaContent): StoryMedia => {
     const categories = dedupe(entry.categories.map((category) => category.trim()));
-    const title = trimOrFallback(entry.title, "Untitled Story Frame");
-    const description = trimOrFallback(
-        entry.description,
-        "Narrative-driven frame designed to guide the viewer from attention to action.",
-    );
-    const hook = trimOrFallback(entry.hook, title);
-    const goal = trimOrFallback(entry.goal, "Brand awareness");
-    const style = trimOrFallback(entry.style, "Editorial storytelling");
+    const title = trimOrEmpty(entry.title);
+    const description = trimOrEmpty(entry.description);
+    const hook = trimOrEmpty(entry.hook);
+    const goal = trimOrEmpty(entry.goal);
+    const style = trimOrEmpty(entry.style);
 
     return {
         id: entry.id,
@@ -294,80 +290,22 @@ const toStoryCollectionFromCms = (
     collection: UgcShowcaseCollectionContent,
     index: number,
 ): StoryCollection => {
-    const entries = collection.media.map((entry) => toStoryMediaFromCms(entry));
-    const fallbackTitle = `Collection ${index + 1}`;
-    const title = trimOrFallback(collection.name, fallbackTitle);
-    const description = trimOrFallback(
-        collection.description,
-        "A narrative-first campaign collection designed to guide attention to action.",
-    );
-    const story = trimOrFallback(
-        collection.story,
-        "A strategic campaign sequence built to connect emotional storytelling with business outcomes.",
-    );
-    const goals = dedupe(entries.map((entry) => entry.goal));
-    const styles = dedupe(entries.map((entry) => entry.style));
-    const inferredTrack = resolveStoryTrack([], title, `${description} ${story}`, goals.join(" "), styles.join(" "));
-    const track =
-        entries[0]?.track ??
-        inferredTrack;
+    const entries = collection.media
+        .map((entry) => toStoryMediaFromCms(entry))
+        .filter((entry) => hasMediaSource(entry));
+    const title = trimOrEmpty(collection.name);
+    const story = trimOrEmpty(collection.story);
+    const track = entries[0]?.track ?? resolveStoryTrack([], title, story, "", "");
+    const insights = collection.insights.map((item) => item.trim()).filter((item) => item.length > 0);
 
     return {
-        id: trimOrFallback(collection.id, `${slugify(title)}-${index + 1}`),
+        id: collection.id.trim() || `${slugify(title || "collection")}-${index + 1}`,
         title,
         subtitle: `${entries.length} assets in this collection`,
         story,
-        highlights: collection.insights.length > 0
-            ? collection.insights
-            : [
-                description,
-                goals.length > 0
-                    ? `Primary goals: ${goals.slice(0, 2).join(" / ")}.`
-                    : "Primary goals: awareness and conversion.",
-                styles.length > 0
-                    ? `Creative direction: ${styles.slice(0, 2).join(" / ")}.`
-                    : "Creative direction: cinematic and editorial.",
-            ],
+        highlights: insights,
         entries,
         track,
-    };
-};
-
-const toStoryMediaFromMock = (
-    item: (typeof mockPortfolioData.items)[number],
-    index: number,
-): StoryMedia => {
-    const categories = dedupe(
-        [item.category, item.photoCategory ?? "", ...item.tags]
-            .map((value) => value.trim())
-            .filter(Boolean),
-    );
-    const title = trimOrFallback(item.title, `Story Frame ${index + 1}`);
-    const description = trimOrFallback(
-        item.description,
-        item.caption || "Narrative-driven frame crafted for campaign storytelling.",
-    );
-    const hook = trimOrFallback(item.formatType || "", title);
-    const goal = trimOrFallback(item.goal || "", "Brand awareness");
-    const style = trimOrFallback(item.style || "", "Editorial storytelling");
-
-    return {
-        id: item.id,
-        kind: item.kind,
-        title,
-        description,
-        hook,
-        goal,
-        style,
-        mediaUrl: item.coverImage.url,
-        previewUrl: item.coverImage.url,
-        provider: "",
-        embedUrl: "",
-        playbackUrl: item.kind === "video" ? item.coverImage.url : "",
-        thumbnailUrl: item.coverImage.url,
-        mime: item.kind === "photo" ? "image/jpeg" : "",
-        categories,
-        track: resolveStoryTrack(categories, title, description, goal, style),
     };
 };
 
@@ -382,34 +320,14 @@ const buildCollections = (mediaItems: StoryMedia[]): StoryCollection[] => {
 
     return Array.from(grouped.entries())
         .map(([track, entries], index) => {
-            const goals = dedupe(entries.map((entry) => entry.goal));
-            const styles = dedupe(entries.map((entry) => entry.style));
-            const beats = entries
-                .slice(0, 3)
-                .map((entry) => stripMarkdownInline(entry.hook || entry.title))
-                .filter(Boolean);
-
-            const sequence =
-                beats.length > 0
-                    ? beats.join(" -> ")
-                    : "Attention -> Trust -> Conversion";
-
-            const story = `This track is sequenced as a full campaign narrative: ${sequence}. Every asset supports the same brand promise so the audience feels one connected story.`;
+            const story = "";
 
             return {
-                id: `${slugify(track)}-${index + 1}`,
+                id: `${slugify(track || "collection")}-${index + 1}`,
                 title: track,
                 subtitle: `${entries.length} assets in this collection`,
                 story,
-                highlights: [
-                    `${entries.length} assets mapped to one journey arc.`,
-                    goals.length > 0
-                        ? `Primary goals: ${goals.slice(0, 2).join(" / ")}.`
-                        : "Primary goals: awareness and conversion.",
-                    styles.length > 0
-                        ? `Creative direction: ${styles.slice(0, 2).join(" / ")}.`
-                        : "Creative direction: cinematic and editorial.",
-                ],
+                highlights: [],
                 entries: entries.slice(0, 6),
                 track,
             };
@@ -450,22 +368,14 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const [selectedMedia, setSelectedMedia] = useState<StoryMedia | null>(null);
     const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number } | null>(null);
 
-    const sectionName = myWork?.sectionName?.trim() || "Portfolio Showcase";
-    const sectionTitle = myWork?.title?.trim() || "The Story Vault";
-    const sectionText =
-        myWork?.text?.trim() ||
-        "Collections, highlights, and video narratives designed to show brands how each campaign drives emotion, trust, and action.";
+    const sectionName = myWork?.sectionName?.trim() ?? "";
+    const sectionTitle = myWork?.title?.trim() ?? "";
+    const sectionText = myWork?.text?.trim() ?? "";
 
-    const fallbackShowcaseMedia = useMemo<StoryMedia[]>(() => {
-        const cmsMedia = (myWork?.media ?? [])
-            .filter((entry) => entry.imageUrl.trim().length > 0)
-            .map((entry) => toStoryMediaFromCms(entry));
-
-        if (cmsMedia.length > 0) {
-            return cmsMedia;
-        }
-
-        return mockPortfolioData.items.map((item, index) => toStoryMediaFromMock(item, index));
+    const sourceMedia = useMemo<StoryMedia[]>(() => {
+        return (myWork?.media ?? [])
+            .map((entry) => toStoryMediaFromCms(entry))
+            .filter((entry) => hasMediaSource(entry));
     }, [myWork?.media]);
 
     const separatedCollections = useMemo<StoryCollection[]>(() => {
@@ -477,23 +387,13 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const separatedHighlights = useMemo<StoryMedia[]>(() => {
         return (showcase?.highlights ?? [])
             .map((entry) => toStoryMediaFromCms(entry))
-            .filter(
-                (entry) =>
-                    entry.mediaUrl.length > 0 ||
-                    entry.previewUrl.length > 0 ||
-                    entry.embedUrl.length > 0,
-            );
+            .filter((entry) => hasMediaSource(entry));
     }, [showcase?.highlights]);
 
     const separatedVideos = useMemo<StoryMedia[]>(() => {
         return (showcase?.videos ?? [])
             .map((entry) => toStoryMediaFromCms(entry))
-            .filter(
-                (entry) =>
-                    entry.mediaUrl.length > 0 ||
-                    entry.previewUrl.length > 0 ||
-                    entry.embedUrl.length > 0,
-            );
+            .filter((entry) => hasMediaSource(entry));
     }, [showcase?.videos]);
 
     const hasSeparatedShowcase = useMemo(() => {
@@ -510,30 +410,30 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
 
     const collections = useMemo(() => {
         if (!hasSeparatedShowcase) {
-            return buildCollections(fallbackShowcaseMedia);
+            return buildCollections(sourceMedia);
         }
 
         return separatedCollections;
-    }, [fallbackShowcaseMedia, hasSeparatedShowcase, separatedCollections]);
+    }, [sourceMedia, hasSeparatedShowcase, separatedCollections]);
 
     const highlights = useMemo(() => {
         if (hasSeparatedShowcase) {
             return separatedHighlights.slice(0, 6);
         }
 
-        const photosOnly = fallbackShowcaseMedia.filter((item) => !isVideoMedia(item));
-        const source = photosOnly.length > 0 ? photosOnly : fallbackShowcaseMedia;
+        const photosOnly = sourceMedia.filter((item) => !isVideoMedia(item));
+        const source = photosOnly.length > 0 ? photosOnly : sourceMedia;
 
         return source.slice(0, 6);
-    }, [fallbackShowcaseMedia, hasSeparatedShowcase, separatedHighlights]);
+    }, [sourceMedia, hasSeparatedShowcase, separatedHighlights]);
 
     const videos = useMemo(() => {
         if (hasSeparatedShowcase) {
             return separatedVideos.slice(0, 4);
         }
 
-        return fallbackShowcaseMedia.filter((item) => isVideoMedia(item)).slice(0, 4);
-    }, [fallbackShowcaseMedia, hasSeparatedShowcase, separatedVideos]);
+        return sourceMedia.filter((item) => isVideoMedia(item)).slice(0, 4);
+    }, [sourceMedia, hasSeparatedShowcase, separatedVideos]);
 
     const hasCollections = collections.length > 0;
     const hasHighlights = highlights.length > 0;
@@ -600,7 +500,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
         };
     }, [selectedMedia]);
 
-    if (!hasSeparatedShowcase && fallbackShowcaseMedia.length === 0) {
+    if (!hasSeparatedShowcase && sourceMedia.length === 0) {
         return null;
     }
 
@@ -626,27 +526,35 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
             <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,hsl(var(--foreground)/0.16)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--foreground)/0.16)_1px,transparent_1px)] [background-size:44px_44px]" />
 
             <div className="container relative mx-auto px-6 lg:px-16">
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.75 }}
-                    className="mx-auto mb-9 max-w-3xl text-center"
-                >
-                    <p className="mb-3 inline-flex items-center gap-2 border border-foreground/25 bg-background/80 px-3 py-1.5 font-body text-[0.65rem] uppercase tracking-[0.22em] text-foreground/85 backdrop-blur-sm">
-                        <Sparkles className="h-3.5 w-3.5 text-accent" />
-                        Editorial Storyboard
-                    </p>
-                    <p className="mb-3 font-body text-[0.62rem] uppercase tracking-[0.26em] text-muted-foreground">
-                        {sectionName}
-                    </p>
-                    <h2 className="font-display text-4xl font-light italic leading-[1.06] text-foreground sm:text-5xl lg:text-6xl">
-                        {sectionTitle}
-                    </h2>
-                    <p className="mx-auto mt-3 max-w-2xl font-body text-sm leading-relaxed text-muted-foreground sm:text-base">
-                        {sectionText}
-                    </p>
-                </motion.div>
+                {(sectionName || sectionTitle || sectionText) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.75 }}
+                        className="mx-auto mb-9 max-w-3xl text-center"
+                    >
+                        <p className="mb-3 inline-flex items-center gap-2 border border-foreground/25 bg-background/80 px-3 py-1.5 font-body text-[0.65rem] uppercase tracking-[0.22em] text-foreground/85 backdrop-blur-sm">
+                            <Sparkles className="h-3.5 w-3.5 text-accent" />
+                            Editorial Storyboard
+                        </p>
+                        {sectionName && (
+                            <p className="mb-3 font-body text-[0.62rem] uppercase tracking-[0.26em] text-muted-foreground">
+                                {sectionName}
+                            </p>
+                        )}
+                        {sectionTitle && (
+                            <h2 className="font-display text-4xl font-light italic leading-[1.06] text-foreground sm:text-5xl lg:text-6xl">
+                                {sectionTitle}
+                            </h2>
+                        )}
+                        {sectionText && (
+                            <p className="mx-auto mt-3 max-w-2xl font-body text-sm leading-relaxed text-muted-foreground sm:text-base">
+                                {sectionText}
+                            </p>
+                        )}
+                    </motion.div>
+                )}
 
                 {availableLaneCount > 1 && (
                     <div className="mx-auto mb-8 flex max-w-3xl flex-wrap justify-center gap-2">
@@ -750,26 +658,34 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     </div>
 
                                     <div className="p-4 sm:p-5">
-                                        <p className="font-body text-[0.58rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                            {collection.subtitle}
-                                        </p>
-                                        <h4 className="mt-2 font-display text-2xl font-light italic leading-tight text-foreground sm:text-3xl">
-                                            {collection.title}
-                                        </h4>
-                                        <p className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
-                                            {truncateText(collection.story, 220)}
-                                        </p>
-                                        <ul className="mt-3 space-y-1.5">
-                                            {collection.highlights.map((highlight) => (
-                                                <li
-                                                    key={`${collection.id}-${highlight}`}
-                                                    className="flex items-start gap-2 font-body text-xs leading-relaxed text-foreground/80"
-                                                >
-                                                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
-                                                    {highlight}
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        {collection.subtitle && (
+                                            <p className="font-body text-[0.58rem] uppercase tracking-[0.2em] text-muted-foreground">
+                                                {collection.subtitle}
+                                            </p>
+                                        )}
+                                        {collection.title && (
+                                            <h4 className="mt-2 font-display text-2xl font-light italic leading-tight text-foreground sm:text-3xl">
+                                                {collection.title}
+                                            </h4>
+                                        )}
+                                        {collection.story && (
+                                            <p className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+                                                {truncateText(collection.story, 220)}
+                                            </p>
+                                        )}
+                                        {collection.highlights.length > 0 && (
+                                            <ul className="mt-3 space-y-1.5">
+                                                {collection.highlights.map((highlight) => (
+                                                    <li
+                                                        key={`${collection.id}-${highlight}`}
+                                                        className="flex items-start gap-2 font-body text-xs leading-relaxed text-foreground/80"
+                                                    >
+                                                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
+                                                        {highlight}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
                                         <span className="mt-4 inline-flex items-center gap-1.5 font-body text-[0.62rem] uppercase tracking-[0.16em] text-foreground">
                                             Open Collection Story
                                             <ArrowUpRight className="h-3.5 w-3.5 text-accent" />
@@ -799,6 +715,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                         {highlights.map((item, index) => {
                             const highlightPreviewUrl =
                                 getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
+                            const goalAndStyle = [item.goal, item.style]
+                                .filter((value) => value.length > 0)
+                                .join(" / ");
 
                             return (
                                 <motion.button
@@ -844,29 +763,41 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     )}
                                     {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
                                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,12,12,0.04)_10%,rgba(12,12,12,0.72)_100%)]" />
-                                    <span className="absolute left-3 top-3 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
-                                        {item.track}
-                                    </span>
+                                    {item.track && (
+                                        <span className="absolute left-3 top-3 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
+                                            {item.track}
+                                        </span>
+                                    )}
                                     <div className="absolute bottom-0 left-0 right-0 p-3">
-                                        <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/80">
-                                            Hook
-                                        </p>
-                                        <p className="mt-1 font-display text-xl font-light italic leading-tight text-primary-foreground">
-                                            {item.hook}
-                                        </p>
+                                        {item.hook && (
+                                            <>
+                                                <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/80">
+                                                    Hook
+                                                </p>
+                                                <p className="mt-1 font-display text-xl font-light italic leading-tight text-primary-foreground">
+                                                    {item.hook}
+                                                </p>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
                                 <div className="p-4">
-                                    <h4 className="font-display text-2xl font-light leading-tight text-foreground">
-                                        {item.title}
-                                    </h4>
-                                    <p className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
-                                        {truncateText(stripMarkdownInline(item.description), 170)}
-                                    </p>
-                                    <p className="mt-3 font-body text-[0.62rem] uppercase tracking-[0.15em] text-foreground/75">
-                                        {item.goal} / {item.style}
-                                    </p>
+                                    {item.title && (
+                                        <h4 className="font-display text-2xl font-light leading-tight text-foreground">
+                                            {item.title}
+                                        </h4>
+                                    )}
+                                    {item.description && (
+                                        <p className={`font-body text-sm leading-relaxed text-muted-foreground ${item.title ? "mt-2" : ""}`}>
+                                            {truncateText(stripMarkdownInline(item.description), 170)}
+                                        </p>
+                                    )}
+                                    {goalAndStyle && (
+                                        <p className={`font-body text-[0.62rem] uppercase tracking-[0.15em] text-foreground/75 ${item.title || item.description ? "mt-3" : ""}`}>
+                                            {goalAndStyle}
+                                        </p>
+                                    )}
                                 </div>
                             </motion.button>
                             );
@@ -875,28 +806,27 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                 </div>
                 )}
 
-                <div className="mt-14 overflow-hidden border border-foreground/20 bg-foreground text-primary-foreground">
-                    <div className="p-4 sm:p-5 lg:p-6">
-                        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                            <div>
-                                <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-primary-foreground/70">
-                                    Videos
-                                </p>
-                                <h3 className="font-display text-3xl font-light italic text-primary-foreground sm:text-4xl">
-                                    Cinematic Story Cuts
-                                </h3>
+                {videos.length > 0 && (
+                    <div className="mt-14 overflow-hidden border border-foreground/20 bg-foreground text-primary-foreground">
+                        <div className="p-4 sm:p-5 lg:p-6">
+                            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                                <div>
+                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-primary-foreground/70">
+                                        Videos
+                                    </p>
+                                    <h3 className="font-display text-3xl font-light italic text-primary-foreground sm:text-4xl">
+                                        Cinematic Story Cuts
+                                    </h3>
+                                </div>
                             </div>
-                        </div>
 
-                        {videos.length === 0 ? (
-                            <p className="font-body text-sm text-primary-foreground/75">
-                                Add video assets to unlock this cinematic story board.
-                            </p>
-                        ) : (
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                                 {videos.map((video, index) => {
                                     const isPortrait = getOrientation(video.width, video.height) === "portrait";
                                     const previewHeight = isPortrait ? 980 : 560;
+                                    const goalAndStyle = [video.goal, video.style]
+                                        .filter((value) => value.length > 0)
+                                        .join(" / ");
 
                                     return (
                                         <motion.button
@@ -960,26 +890,34 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                             </div>
 
                                             <div className="p-3.5">
-                                                <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/72">
-                                                    Campaign Hook
-                                                </p>
-                                                <h4 className="mt-1 font-display text-2xl font-light leading-tight text-primary-foreground">
-                                                    {video.hook}
-                                                </h4>
-                                                <p className="mt-2 font-body text-xs leading-relaxed text-primary-foreground/78">
-                                                    {truncateText(stripMarkdownInline(video.description), 130)}
-                                                </p>
-                                                <p className="mt-2.5 font-body text-[0.58rem] uppercase tracking-[0.14em] text-primary-foreground/70">
-                                                    {video.goal} / {video.style}
-                                                </p>
+                                                {video.hook && (
+                                                    <>
+                                                        <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/72">
+                                                            Campaign Hook
+                                                        </p>
+                                                        <h4 className="mt-1 font-display text-2xl font-light leading-tight text-primary-foreground">
+                                                            {video.hook}
+                                                        </h4>
+                                                    </>
+                                                )}
+                                                {video.description && (
+                                                    <p className={`font-body text-xs leading-relaxed text-primary-foreground/78 ${video.hook ? "mt-2" : ""}`}>
+                                                        {truncateText(stripMarkdownInline(video.description), 130)}
+                                                    </p>
+                                                )}
+                                                {goalAndStyle && (
+                                                    <p className={`font-body text-[0.58rem] uppercase tracking-[0.14em] text-primary-foreground/70 ${video.hook || video.description ? "mt-2.5" : ""}`}>
+                                                        {goalAndStyle}
+                                                    </p>
+                                                )}
                                             </div>
                                         </motion.button>
                                     );
                                 })}
                             </div>
-                        )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             <Dialog
@@ -995,98 +933,126 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                         <div className="grid grid-cols-1 md:grid-cols-[1.08fr_0.92fr]">
                             <div className="border-b border-border bg-muted/30 p-3 sm:p-4 md:border-b-0 md:border-r">
                                 <div className="grid grid-cols-2 gap-2">
-                                    {selectedCollection.entries.map((entry) => (
-                                        <div key={entry.id} className="relative aspect-[4/3] overflow-hidden bg-background">
-                                            {canUseInlineVideoPreview(entry) ? (
-                                                <video
-                                                    src={getVideoPlaybackUrl(entry)}
-                                                    muted
-                                                    loop
-                                                    autoPlay
-                                                    playsInline
-                                                    preload="metadata"
-                                                    className="h-full w-full object-cover"
-                                                />
-                                            ) : (
-                                                <img
-                                                    src={getOptimizedImageUrl(
-                                                        getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl,
-                                                        IMAGE_WIDTHS[1],
-                                                        520,
-                                                    )}
-                                                    srcSet={getImageSrcSet(
-                                                        getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl,
-                                                        520,
-                                                    )}
-                                                    sizes={getImageSizes(
-                                                        getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl,
-                                                    )}
-                                                    alt={entry.title}
-                                                    loading="lazy"
-                                                    decoding="async"
-                                                    {...protectedImageProps}
-                                                    className="h-full w-full object-cover"
-                                                />
-                                            )}
-                                            {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
-                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                                                <p className="font-body text-[0.52rem] uppercase tracking-[0.12em] text-primary-foreground/90">
-                                                    {truncateText(stripMarkdownInline(entry.hook || entry.title), 48)}
-                                                </p>
+                                    {selectedCollection.entries.map((entry) => {
+                                        const mediaLabel = truncateText(
+                                            stripMarkdownInline(entry.hook || entry.title),
+                                            48,
+                                        );
+
+                                        return (
+                                            <div key={entry.id} className="relative aspect-[4/3] overflow-hidden bg-background">
+                                                {canUseInlineVideoPreview(entry) ? (
+                                                    <video
+                                                        src={getVideoPlaybackUrl(entry)}
+                                                        muted
+                                                        loop
+                                                        autoPlay
+                                                        playsInline
+                                                        preload="metadata"
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={getOptimizedImageUrl(
+                                                            getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl,
+                                                            IMAGE_WIDTHS[1],
+                                                            520,
+                                                        )}
+                                                        srcSet={getImageSrcSet(
+                                                            getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl,
+                                                            520,
+                                                        )}
+                                                        sizes={getImageSizes(
+                                                            getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl,
+                                                        )}
+                                                        alt={entry.title}
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        {...protectedImageProps}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                )}
+                                                {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
+                                                {mediaLabel && (
+                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                                                        <p className="font-body text-[0.52rem] uppercase tracking-[0.12em] text-primary-foreground/90">
+                                                            {mediaLabel}
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
 
                             <div className="p-5 pt-12 sm:p-6 sm:pt-12">
                                 <DialogHeader className="text-left">
-                                    <p className="font-body text-[0.58rem] uppercase tracking-[0.18em] text-muted-foreground">
-                                        {selectedCollection.subtitle}
-                                    </p>
-                                    <DialogTitle className="font-display text-3xl font-light italic leading-tight text-foreground">
-                                        {selectedCollection.title}
-                                    </DialogTitle>
-                                    <p className="font-body text-sm leading-relaxed text-muted-foreground">
-                                        {selectedCollection.story}
-                                    </p>
+                                    {selectedCollection.subtitle && (
+                                        <p className="font-body text-[0.58rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                            {selectedCollection.subtitle}
+                                        </p>
+                                    )}
+                                    {selectedCollection.title && (
+                                        <DialogTitle className="font-display text-3xl font-light italic leading-tight text-foreground">
+                                            {selectedCollection.title}
+                                        </DialogTitle>
+                                    )}
+                                    {selectedCollection.story && (
+                                        <p className="font-body text-sm leading-relaxed text-muted-foreground">
+                                            {selectedCollection.story}
+                                        </p>
+                                    )}
                                 </DialogHeader>
 
-                                <div className="mt-4 border-t border-border pt-3">
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                        Narrative Blueprint
-                                    </p>
-                                    <ul className="mt-2.5 space-y-1.5">
-                                        {selectedCollection.highlights.map((highlight) => (
-                                            <li
-                                                key={`${selectedCollection.id}-${highlight}`}
-                                                className="flex items-start gap-2 font-body text-sm text-foreground/85"
-                                            >
-                                                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
-                                                {highlight}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                                {selectedCollection.highlights.length > 0 && (
+                                    <div className="mt-4 border-t border-border pt-3">
+                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                            Narrative Blueprint
+                                        </p>
+                                        <ul className="mt-2.5 space-y-1.5">
+                                            {selectedCollection.highlights.map((highlight) => (
+                                                <li
+                                                    key={`${selectedCollection.id}-${highlight}`}
+                                                    className="flex items-start gap-2 font-body text-sm text-foreground/85"
+                                                >
+                                                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
+                                                    {highlight}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
 
                                 <div className="mt-4 border-t border-border pt-3">
                                     <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
                                         Asset Flow
                                     </p>
                                     <ol className="mt-2.5 space-y-1.5">
-                                        {selectedCollection.entries.map((entry, index) => (
-                                            <li key={entry.id} className="flex gap-3">
-                                                <span className="font-body text-xs uppercase tracking-[0.16em] text-accent">
-                                                    {String(index + 1).padStart(2, "0")}
-                                                </span>
-                                                <div>
-                                                    <p className="font-body text-sm text-foreground">{entry.title}</p>
-                                                    <p className="font-body text-xs text-muted-foreground">
-                                                        {truncateText(stripMarkdownInline(entry.hook), 92)}
-                                                    </p>
-                                                </div>
-                                            </li>
-                                        ))}
+                                        {selectedCollection.entries.map((entry, index) => {
+                                            const entryHook = truncateText(
+                                                stripMarkdownInline(entry.hook),
+                                                92,
+                                            );
+
+                                            return (
+                                                <li key={entry.id} className="flex gap-3">
+                                                    <span className="font-body text-xs uppercase tracking-[0.16em] text-accent">
+                                                        {String(index + 1).padStart(2, "0")}
+                                                    </span>
+                                                    <div>
+                                                        {entry.title && (
+                                                            <p className="font-body text-sm text-foreground">{entry.title}</p>
+                                                        )}
+                                                        {entryHook && (
+                                                            <p className="font-body text-xs text-muted-foreground">
+                                                                {entryHook}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
                                     </ol>
                                 </div>
                             </div>
@@ -1168,44 +1134,64 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     <DialogTitle className="font-display text-2xl font-light italic leading-tight text-foreground">
                                         {selectedMedia.title}
                                     </DialogTitle>
-                                    <div className="font-body text-sm leading-relaxed text-muted-foreground">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                                            {selectedMedia.description}
-                                        </ReactMarkdown>
-                                    </div>
+                                    {selectedMedia.description && (
+                                        <div className="font-body text-sm leading-relaxed text-muted-foreground">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                                {selectedMedia.description}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
                                 </DialogHeader>
 
                                 <div className="mt-4 space-y-2.5 border-t border-border pt-3">
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                        Hook
-                                    </p>
-                                    <p className="font-display text-lg italic leading-tight text-foreground">
-                                        {selectedMedia.hook}
-                                    </p>
+                                    {selectedMedia.hook && (
+                                        <>
+                                            <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                Hook
+                                            </p>
+                                            <p className="font-display text-lg italic leading-tight text-foreground">
+                                                {selectedMedia.hook}
+                                            </p>
+                                        </>
+                                    )}
 
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                        Goal
-                                    </p>
-                                    <p className="font-body text-sm text-foreground">{selectedMedia.goal}</p>
+                                    {selectedMedia.goal && (
+                                        <>
+                                            <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                Goal
+                                            </p>
+                                            <p className="font-body text-sm text-foreground">{selectedMedia.goal}</p>
+                                        </>
+                                    )}
 
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                        Style
-                                    </p>
-                                    <p className="font-body text-sm text-foreground">{selectedMedia.style}</p>
+                                    {selectedMedia.style && (
+                                        <>
+                                            <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                Style
+                                            </p>
+                                            <p className="font-body text-sm text-foreground">{selectedMedia.style}</p>
+                                        </>
+                                    )}
 
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                        Track
-                                    </p>
-                                    <p className="font-body text-sm text-foreground">{selectedMedia.track}</p>
+                                    {selectedMedia.track && (
+                                        <>
+                                            <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                Track
+                                            </p>
+                                            <p className="font-body text-sm text-foreground">{selectedMedia.track}</p>
+                                        </>
+                                    )}
 
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                        Categories
-                                    </p>
-                                    <p className="font-body text-sm text-foreground">
-                                        {selectedMedia.categories.length > 0
-                                            ? selectedMedia.categories.join(" / ")
-                                            : "Uncategorized"}
-                                    </p>
+                                    {selectedMedia.categories.length > 0 && (
+                                        <>
+                                            <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                Categories
+                                            </p>
+                                            <p className="font-body text-sm text-foreground">
+                                                {selectedMedia.categories.join(" / ")}
+                                            </p>
+                                        </>
+                                    )}
 
                                     <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
                                         Format
@@ -1214,16 +1200,19 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         {isVideoMedia(selectedMedia) ? "Video" : "Photo"}
                                     </p>
 
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                        Resolution
-                                    </p>
-                                    <p className="font-body text-sm text-foreground">
-                                        {naturalDimensions
-                                            ? `${naturalDimensions.width} x ${naturalDimensions.height}px`
-                                            : selectedMedia.width && selectedMedia.height
-                                                ? `${selectedMedia.width} x ${selectedMedia.height}px`
-                                                : "Unknown"}
-                                    </p>
+                                    {(naturalDimensions ||
+                                        (selectedMedia.width && selectedMedia.height)) && (
+                                        <>
+                                            <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                Resolution
+                                            </p>
+                                            <p className="font-body text-sm text-foreground">
+                                                {naturalDimensions
+                                                    ? `${naturalDimensions.width} x ${naturalDimensions.height}px`
+                                                    : `${selectedMedia.width} x ${selectedMedia.height}px`}
+                                            </p>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

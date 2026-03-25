@@ -83,24 +83,6 @@ const detectOrientation = (
     return index % 2 === 0 ? "landscape" : "portrait";
 };
 
-const getHook = (goal: string | undefined, title: string): string => {
-    const normalizedGoal = goal?.toLowerCase() ?? "";
-
-    if (normalizedGoal.includes("booking")) {
-        return "Turn Browsers Into Bookings";
-    }
-
-    if (normalizedGoal.includes("awareness")) {
-        return "Make The Scroll Stop Instantly";
-    }
-
-    if (normalizedGoal.includes("destination")) {
-        return "Sell The Feeling, Not Just The View";
-    }
-
-    return title;
-};
-
 const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
     const [selectedVideo, setSelectedVideo] = useState<VideoShowcaseItem | null>(null);
     const [mediaDimensions, setMediaDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -120,20 +102,23 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
             })
             .slice(0, 3)
             .map((item, index) => {
-                const title = item.title || `Video ${index + 1}`;
-                const goal = item.goal || "Brand awareness";
+                const title = item.title.trim();
+                const goal = item.goal.trim();
+                const hook = item.hook.trim();
+                const style = item.style.trim();
+                const description = item.description.trim();
 
                 return {
                     id: item.id,
                     title,
-                    hook: item.hook || getHook(goal, title),
-                    description: item.description,
+                    hook,
+                    description,
                     imageUrl: item.imageUrl,
                     mediaUrl: item.imageUrl,
                     mime: item.mime,
                     orientation: detectOrientation(item.width, item.height, item.categories, index),
                     goal,
-                    style: item.style || "Cinematic storytelling",
+                    style,
                 };
             })
             .filter((item) => item.mediaUrl.length > 0);
@@ -221,9 +206,11 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                             <Clapperboard className="h-3 w-3 text-accent" />
                                             {video.orientation}
                                         </span>
-                                        <span className="bg-primary-foreground/15 px-2 py-1 font-body text-[0.58rem] uppercase tracking-[0.16em] text-primary-foreground/80">
-                                            {video.goal}
-                                        </span>
+                                        {video.goal && (
+                                            <span className="bg-primary-foreground/15 px-2 py-1 font-body text-[0.58rem] uppercase tracking-[0.16em] text-primary-foreground/80">
+                                                {video.goal}
+                                            </span>
+                                        )}
                                     </div>
 
                                     <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/40 bg-primary-foreground/10 text-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:bg-accent group-hover:text-accent-foreground">
@@ -231,69 +218,77 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                     </span>
 
                                     <div className="absolute bottom-0 left-0 right-0 p-3.5 sm:p-4">
-                                        <p className="mb-1.5 font-body text-[0.58rem] uppercase tracking-[0.18em] text-primary-foreground/70">
-                                            Hook
-                                        </p>
-                                        <h3 className="font-display text-xl font-light italic leading-tight text-primary-foreground sm:text-2xl">
-                                            {video.hook}
-                                        </h3>
-                                        <div className="mt-2 max-h-16 max-w-2xl overflow-hidden font-body text-xs leading-relaxed text-primary-foreground/80 sm:text-sm">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                components={{
-                                                    p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-                                                    ul: ({ children }) => (
-                                                        <ul className="mb-1 list-disc space-y-0.5 pl-4 last:mb-0">
-                                                            {children}
-                                                        </ul>
-                                                    ),
-                                                    ol: ({ children }) => (
-                                                        <ol className="mb-1 list-decimal space-y-0.5 pl-4 last:mb-0">
-                                                            {children}
-                                                        </ol>
-                                                    ),
-                                                    li: ({ children }) => <li>{children}</li>,
-                                                    strong: ({ children }) => (
-                                                        <strong className="font-semibold text-primary-foreground">
-                                                            {children}
-                                                        </strong>
-                                                    ),
-                                                    em: ({ children }) => (
-                                                        <em className="italic text-primary-foreground/95">{children}</em>
-                                                    ),
-                                                    h1: ({ children }) => (
-                                                        <h4 className="mb-1 font-display text-base text-primary-foreground">
-                                                            {children}
-                                                        </h4>
-                                                    ),
-                                                    h2: ({ children }) => (
-                                                        <h4 className="mb-1 font-display text-sm text-primary-foreground">
-                                                            {children}
-                                                        </h4>
-                                                    ),
-                                                    h3: ({ children }) => (
-                                                        <h5 className="mb-1 font-display text-sm text-primary-foreground">
-                                                            {children}
-                                                        </h5>
-                                                    ),
-                                                    a: ({ children, href }) => (
-                                                        <a
-                                                            href={href}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-accent underline underline-offset-2 hover:opacity-80"
-                                                        >
-                                                            {children}
-                                                        </a>
-                                                    ),
-                                                }}
-                                            >
-                                                {video.description}
-                                            </ReactMarkdown>
-                                        </div>
-                                        <p className="mt-2.5 inline-flex items-center gap-2 font-body text-[0.65rem] uppercase tracking-[0.14em] text-primary-foreground/72 sm:text-xs">
-                                            {video.style}
-                                        </p>
+                                        {video.hook && (
+                                            <>
+                                                <p className="mb-1.5 font-body text-[0.58rem] uppercase tracking-[0.18em] text-primary-foreground/70">
+                                                    Hook
+                                                </p>
+                                                <h3 className="font-display text-xl font-light italic leading-tight text-primary-foreground sm:text-2xl">
+                                                    {video.hook}
+                                                </h3>
+                                            </>
+                                        )}
+                                        {video.description && (
+                                            <div className="mt-2 max-h-16 max-w-2xl overflow-hidden font-body text-xs leading-relaxed text-primary-foreground/80 sm:text-sm">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                                                        ul: ({ children }) => (
+                                                            <ul className="mb-1 list-disc space-y-0.5 pl-4 last:mb-0">
+                                                                {children}
+                                                            </ul>
+                                                        ),
+                                                        ol: ({ children }) => (
+                                                            <ol className="mb-1 list-decimal space-y-0.5 pl-4 last:mb-0">
+                                                                {children}
+                                                            </ol>
+                                                        ),
+                                                        li: ({ children }) => <li>{children}</li>,
+                                                        strong: ({ children }) => (
+                                                            <strong className="font-semibold text-primary-foreground">
+                                                                {children}
+                                                            </strong>
+                                                        ),
+                                                        em: ({ children }) => (
+                                                            <em className="italic text-primary-foreground/95">{children}</em>
+                                                        ),
+                                                        h1: ({ children }) => (
+                                                            <h4 className="mb-1 font-display text-base text-primary-foreground">
+                                                                {children}
+                                                            </h4>
+                                                        ),
+                                                        h2: ({ children }) => (
+                                                            <h4 className="mb-1 font-display text-sm text-primary-foreground">
+                                                                {children}
+                                                            </h4>
+                                                        ),
+                                                        h3: ({ children }) => (
+                                                            <h5 className="mb-1 font-display text-sm text-primary-foreground">
+                                                                {children}
+                                                            </h5>
+                                                        ),
+                                                        a: ({ children, href }) => (
+                                                            <a
+                                                                href={href}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-accent underline underline-offset-2 hover:opacity-80"
+                                                            >
+                                                                {children}
+                                                            </a>
+                                                        ),
+                                                    }}
+                                                >
+                                                    {video.description}
+                                                </ReactMarkdown>
+                                            </div>
+                                        )}
+                                        {video.style && (
+                                            <p className="mt-2.5 inline-flex items-center gap-2 font-body text-[0.65rem] uppercase tracking-[0.14em] text-primary-foreground/72 sm:text-xs">
+                                                {video.style}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </button>
@@ -355,79 +350,93 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                         <DialogTitle className="font-display text-2xl font-light italic leading-tight text-foreground">
                                             {selectedVideo.title}
                                         </DialogTitle>
-                                        <div className="font-body text-sm leading-relaxed text-muted-foreground">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                components={{
-                                                    p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                                                    ul: ({ children }) => (
-                                                        <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">
-                                                            {children}
-                                                        </ul>
-                                                    ),
-                                                    ol: ({ children }) => (
-                                                        <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">
-                                                            {children}
-                                                        </ol>
-                                                    ),
-                                                    li: ({ children }) => <li>{children}</li>,
-                                                    strong: ({ children }) => (
-                                                        <strong className="font-semibold text-foreground">
-                                                            {children}
-                                                        </strong>
-                                                    ),
-                                                    em: ({ children }) => (
-                                                        <em className="italic text-foreground/90">{children}</em>
-                                                    ),
-                                                    h1: ({ children }) => (
-                                                        <h4 className="mb-2 font-display text-xl text-foreground">
-                                                            {children}
-                                                        </h4>
-                                                    ),
-                                                    h2: ({ children }) => (
-                                                        <h4 className="mb-2 font-display text-lg text-foreground">
-                                                            {children}
-                                                        </h4>
-                                                    ),
-                                                    h3: ({ children }) => (
-                                                        <h5 className="mb-2 font-display text-base text-foreground">
-                                                            {children}
-                                                        </h5>
-                                                    ),
-                                                    a: ({ children, href }) => (
-                                                        <a
-                                                            href={href}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-accent underline underline-offset-2 hover:opacity-80"
-                                                        >
-                                                            {children}
-                                                        </a>
-                                                    ),
-                                                }}
-                                            >
-                                                {selectedVideo.description}
-                                            </ReactMarkdown>
-                                        </div>
+                                        {selectedVideo.description && (
+                                            <div className="font-body text-sm leading-relaxed text-muted-foreground">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                                                        ul: ({ children }) => (
+                                                            <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">
+                                                                {children}
+                                                            </ul>
+                                                        ),
+                                                        ol: ({ children }) => (
+                                                            <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">
+                                                                {children}
+                                                            </ol>
+                                                        ),
+                                                        li: ({ children }) => <li>{children}</li>,
+                                                        strong: ({ children }) => (
+                                                            <strong className="font-semibold text-foreground">
+                                                                {children}
+                                                            </strong>
+                                                        ),
+                                                        em: ({ children }) => (
+                                                            <em className="italic text-foreground/90">{children}</em>
+                                                        ),
+                                                        h1: ({ children }) => (
+                                                            <h4 className="mb-2 font-display text-xl text-foreground">
+                                                                {children}
+                                                            </h4>
+                                                        ),
+                                                        h2: ({ children }) => (
+                                                            <h4 className="mb-2 font-display text-lg text-foreground">
+                                                                {children}
+                                                            </h4>
+                                                        ),
+                                                        h3: ({ children }) => (
+                                                            <h5 className="mb-2 font-display text-base text-foreground">
+                                                                {children}
+                                                            </h5>
+                                                        ),
+                                                        a: ({ children, href }) => (
+                                                            <a
+                                                                href={href}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-accent underline underline-offset-2 hover:opacity-80"
+                                                            >
+                                                                {children}
+                                                            </a>
+                                                        ),
+                                                    }}
+                                                >
+                                                    {selectedVideo.description}
+                                                </ReactMarkdown>
+                                            </div>
+                                        )}
                                     </DialogHeader>
 
                                     <div className="mt-4 space-y-2.5 border-t border-border pt-3">
-                                        <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
-                                            Hook
-                                        </p>
-                                        <p className="font-display text-lg italic text-foreground leading-tight">
-                                            {selectedVideo.hook}
-                                        </p>
+                                        {selectedVideo.hook && (
+                                            <>
+                                                <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                    Hook
+                                                </p>
+                                                <p className="font-display text-lg italic text-foreground leading-tight">
+                                                    {selectedVideo.hook}
+                                                </p>
+                                            </>
+                                        )}
 
-                                        <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
-                                            Goal
-                                        </p>
-                                        <p className="font-body text-sm text-foreground">{selectedVideo.goal}</p>
+                                        {selectedVideo.goal && (
+                                            <>
+                                                <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                    Goal
+                                                </p>
+                                                <p className="font-body text-sm text-foreground">{selectedVideo.goal}</p>
+                                            </>
+                                        )}
 
-                                        <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
-                                            Style
-                                        </p>
-                                        <p className="font-body text-sm text-foreground">{selectedVideo.style}</p>
+                                        {selectedVideo.style && (
+                                            <>
+                                                <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                    Style
+                                                </p>
+                                                <p className="font-body text-sm text-foreground">{selectedVideo.style}</p>
+                                            </>
+                                        )}
 
                                         <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
                                             Orientation
