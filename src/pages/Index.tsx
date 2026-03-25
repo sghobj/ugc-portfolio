@@ -4,9 +4,9 @@ import AboutSection from "@/components/AboutSection";
 import CinematicVideoSection from "@/components/CinematicVideoSection";
 import ContactSection from "@/components/ContactSection";
 import ServicesSection from "@/components/ServiceSection.tsx";
-import PortfolioSection from "@/components/PortfolioSection.tsx";
 import { DataStateNotice } from "@/components/DataStateNotice";
 import { useUgcContent } from "@/hooks/useUgcContent";
+import PortfolioShowcase from "@/components/PortfolioShowcase";
 
 const Index = () => {
     const { content, isLoading, error } = useUgcContent();
@@ -33,7 +33,8 @@ const Index = () => {
                     <HeroSection hero={content.hero} />
                     <AboutSection aboutMe={content.aboutMe} />
                     <CinematicVideoSection myWork={content.myWork} />
-                    <PortfolioSection myWork={content.myWork} />
+                    {/*<PortfolioSection myWork={content.myWork} />*/}
+                    <PortfolioShowcase myWork={content.myWork} showcase={content.showcase} />
                     <ServicesSection myServices={content.myServices} />
                     <ContactSection />
                     <footer className="py-6 text-center font-body text-xs text-muted-foreground tracking-wider">

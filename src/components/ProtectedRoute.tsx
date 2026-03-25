@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import {
-  clearInstagramPanelToken,
-  getInstagramPanelToken,
-  validateInstagramPanelToken,
-} from '@/lib/instagramPanelAuth'
+  clearUgcAdminToken,
+  getUgcAdminToken,
+  validateUgcAdminToken,
+} from '@/lib/ugcAdminAuth'
 
 type AuthStatus = 'checking' | 'authorized' | 'unauthorized'
 
@@ -14,7 +14,7 @@ export const ProtectedRoute = () => {
 
   useEffect(() => {
     let isMounted = true
-    const token = getInstagramPanelToken()
+    const token = getUgcAdminToken()
 
     if (!token) {
       setStatus('unauthorized')
@@ -24,7 +24,7 @@ export const ProtectedRoute = () => {
     }
 
     const checkAccess = async (): Promise<void> => {
-      const isValid = await validateInstagramPanelToken(token)
+      const isValid = await validateUgcAdminToken(token)
 
       if (!isMounted) {
         return
@@ -35,7 +35,7 @@ export const ProtectedRoute = () => {
         return
       }
 
-      clearInstagramPanelToken()
+      clearUgcAdminToken()
       setStatus('unauthorized')
     }
 
@@ -55,7 +55,7 @@ export const ProtectedRoute = () => {
   }
 
   if (status === 'unauthorized') {
-    return <Navigate to="/instagram-login" replace state={{ from: location.pathname }} />
+    return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />
   }
 
   return <Outlet />

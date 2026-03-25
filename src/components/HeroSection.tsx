@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import heroImage from "@/assets/hero-portrait.jpg";
 import type { UgcHeroContent } from "@/hooks/useUgcContent";
+import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 
 type HeroSectionProps = {
     hero?: UgcHeroContent;
@@ -19,9 +20,9 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
     const lastName = lastNameParts.join(" ");
 
     return (
-        <section className="min-h-screen flex items-center relative overflow-hidden">
+        <section className="relative flex min-h-[88vh] items-center overflow-hidden pt-20 pb-12 lg:pt-24 lg:pb-16">
             <div className="container mx-auto px-6 lg:px-16">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+                <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
                     <motion.div
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -34,31 +35,31 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                             </p>
                         )}
                         {name && (
-                            <h1 className="font-display text-6xl sm:text-7xl lg:text-8xl font-light leading-[0.9] text-foreground mb-6">
+                            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-light leading-[0.9] text-foreground mb-5">
                                 {firstName}
                                 {lastName && (
                                     <>
-                                        <br />
-                                        <span className="italic font-light">{lastName}</span>
+                                        <br className="hidden sm:block" />
+                                        <span className="ml-2 italic font-light sm:ml-0">{lastName}</span>
                                     </>
                                 )}
                             </h1>
                         )}
                         {description && (
-                            <p className="font-body text-base text-muted-foreground max-w-md leading-relaxed mb-8">
+                            <p className="font-body text-base text-muted-foreground max-w-md leading-relaxed mb-6">
                                 {description}
                             </p>
                         )}
-                        <div className="flex gap-4">
+                        <div className="flex flex-wrap gap-3">
                             <a
                                 href="#contact"
-                                className="inline-block bg-foreground text-background font-body text-sm tracking-wider uppercase px-8 py-4 hover:opacity-80 transition-opacity"
+                                className="inline-block bg-foreground text-background font-body text-sm tracking-wider uppercase px-6 py-3 hover:opacity-80 transition-opacity"
                             >
                                 Work With Me
                             </a>
                             <a
                                 href="#portfolio"
-                                className="inline-block border border-foreground text-foreground font-body text-sm tracking-wider uppercase px-8 py-4 hover:bg-foreground hover:text-background transition-all"
+                                className="inline-block border border-foreground text-foreground font-body text-sm tracking-wider uppercase px-6 py-3 hover:bg-foreground hover:text-background transition-all"
                             >
                                 View Work
                             </a>
@@ -72,12 +73,14 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                         className="order-1 lg:order-2"
                     >
                         <div className="relative">
-                            <div className="aspect-[3/4] overflow-hidden">
+                            <div className="relative aspect-[3/4] overflow-hidden">
                                 <img
                                     src={heroImage}
                                     alt="Sarah Ghobj - UGC Creator and Photographer"
+                                    {...protectedImageProps}
                                     className="w-full h-full object-cover"
                                 />
+                                <PhotoProtectionOverlay />
                             </div>
                             <div className="absolute -bottom-4 -left-4 w-24 h-24 border border-accent opacity-40" />
                             <div className="absolute -top-4 -right-4 w-16 h-16 bg-accent opacity-20" />

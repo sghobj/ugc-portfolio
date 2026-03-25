@@ -40,7 +40,89 @@ query Ugc {
                     width
                     height
                     mime
+                    provider
+                    embedUrl
+                    playbackUrl
+                    thumbnailUrl
                 }
+            }
+        }
+        collections {
+            id
+            name
+            description
+            story
+            insights {
+                name
+            }
+            media {
+                id
+                kind
+                title
+                description
+                hook
+                goal
+                style
+                categories {
+                    name
+                }
+                media {
+                    url
+                    alternativeText
+                    width
+                    height
+                    mime
+                    provider
+                    embedUrl
+                    playbackUrl
+                    thumbnailUrl
+                }
+            }
+        }
+        highlights {
+            id
+            kind
+            title
+            description
+            hook
+            goal
+            style
+            categories {
+                name
+            }
+            media {
+                url
+                alternativeText
+                width
+                height
+                mime
+                provider
+                embedUrl
+                playbackUrl
+                thumbnailUrl
+            }
+        }
+        videos {
+            id
+            kind
+            title
+            description
+            hook
+            goal
+            style
+            categories {
+                name
+            }
+            media {
+                url
+                alternativeText
+                width
+                height
+                mime
+                provider
+                embedUrl
+                playbackUrl
+                thumbnailUrl
             }
         }
     }
