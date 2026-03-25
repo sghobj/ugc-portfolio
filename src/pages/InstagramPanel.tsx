@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import Navbar from '@/components/Navbar'
 import { Progress } from '@/components/ui/progress'
+import { env } from '@/config/env'
 import { clearUgcAdminToken, getUgcAdminMe, getUgcAdminToken } from '@/lib/ugcAdminAuth'
 import {
   createBunnyVideoUploadStart,
@@ -56,6 +57,27 @@ const emptyAssetForm: AssetFormState = {
 }
 
 const asString = (value: unknown): string => (typeof value === 'string' ? value : '')
+
+const sanitizeFolderSegment = (value: string): string => {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/(^-|-$)+/g, '')
+}
+
+const buildUploadScope = (stage: string, collectionName?: string): string | undefined => {
+  const stageSegment = sanitizeFolderSegment(stage)
+  const collectionSegment = sanitizeFolderSegment(collectionName || '')
+  const segments = [stageSegment, collectionSegment].filter((segment) => segment.length > 0)
+
+  if (segments.length === 0) {
+    return undefined
+  }
+
+  return segments.join('/')
+}
 
 const isBunnyAsset = (asset: UgcAdminAsset): boolean =>
   (asset.storageProvider || '').toLowerCase() === 'bunny' || Boolean(asset.bunny?.videoId)
@@ -282,6 +304,10 @@ export const InstagramPanel = () => {
       const selectedCollection = collections.find(
         (collection) => String(collection.id) === assetForm.collectionId,
       )
+      const uploadScope = buildUploadScope(
+        env.uploadStage,
+        selectedCollection?.slug || selectedCollection?.name || '',
+      )
 
       if (assetForm.kind === 'video') {
         if (!config?.bunnyConfigured) {
@@ -295,6 +321,7 @@ export const InstagramPanel = () => {
           filename: selectedFile.name,
           mimeType: selectedFile.type || undefined,
           size: selectedFile.size,
+          collectionName: uploadScope,
         })
 
         await uploadFileToBunnyTus(selectedFile, started, (ratio) => {
@@ -337,7 +364,7 @@ export const InstagramPanel = () => {
         const signature = await createCloudinaryUploadSignature(token, {
           filename: selectedFile.name,
           kind: 'photo',
-          collectionName: selectedCollection?.slug || selectedCollection?.name || undefined,
+          collectionName: uploadScope,
         })
 
         const uploaded = await uploadFileToCloudinary(signature, selectedFile)
@@ -605,6 +632,9 @@ export const InstagramPanel = () => {
             <h2 className="font-display text-3xl italic text-foreground">Upload Asset</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Photos upload to Cloudinary. Videos upload to Bunny Stream. Metadata is saved in Strapi.
+            </p>
+            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              Upload stage folder: {env.uploadStage}
             </p>
             <form className="mt-4 grid gap-4" onSubmit={(event) => void handleCreateAsset(event)}>
               <div className="grid gap-4 md:grid-cols-2">

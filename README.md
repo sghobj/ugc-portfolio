@@ -67,12 +67,14 @@ VITE_BACKEND_MODE=mock
 VITE_STRAPI_URL=http://localhost:1337
 VITE_STRAPI_TOKEN=
 VITE_CUSTOM_API_URL=http://localhost:4000/api
+VITE_UPLOAD_STAGE=local
 ```
 
 Behavior:
 - `mock`: local starter content
 - `strapi`: reads from Strapi collections
 - `custom`: reads from custom API routes
+- `VITE_UPLOAD_STAGE`: upload scope prefix used for Cloudinary/Bunny folders (for example `local`, `staging`, `prod`)
 
 If `VITE_BACKEND_MODE` is not set:
 - uses `strapi` when `VITE_STRAPI_URL` exists
@@ -113,3 +115,12 @@ src/
 - `npm run typecheck`
 - `npm run lint`
 - `npm run preview`
+
+## Deployment Routing (SPA)
+
+This app uses `BrowserRouter`, so direct URLs like `/admin/login` require a rewrite to `index.html`.
+
+- Vercel: `vercel.json` is included with a catch-all rewrite.
+- Netlify: `public/_redirects` is included and copied to build output.
+
+Without this, deep links refresh to host-level 404 pages.

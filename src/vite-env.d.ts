@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_STRAPI_URL?: string
   readonly VITE_STRAPI_TOKEN?: string
   readonly VITE_CUSTOM_API_URL?: string
+  readonly VITE_UPLOAD_STAGE?: string
 }
 
 interface ImportMeta {
