@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Clapperboard, Play, Sparkles } from "lucide-react";
+import { Clapperboard, Eye, EyeOff, Play, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -25,6 +25,7 @@ type VideoShowcaseItem = {
     description: string;
     imageUrl: string;
     mediaUrl: string;
+    embedUrl: string;
     mime: string;
     orientation: VideoOrientation;
     goal: string;
@@ -86,6 +87,7 @@ const detectOrientation = (
 const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
     const [selectedVideo, setSelectedVideo] = useState<VideoShowcaseItem | null>(null);
     const [mediaDimensions, setMediaDimensions] = useState<{ width: number; height: number } | null>(null);
+    const [showMobileVideoDetails, setShowMobileVideoDetails] = useState(false);
 
     const videoShowcase = useMemo<VideoShowcaseItem[]>(() => {
         return (myWork?.media ?? [])
@@ -107,25 +109,34 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                 const hook = item.hook.trim();
                 const style = item.style.trim();
                 const description = item.description.trim();
+                const playbackUrl = item.playbackUrl.trim() || item.sourceUrl.trim();
+                const imageUrl =
+                    item.thumbnailUrl.trim() ||
+                    item.imageUrl.trim() ||
+                    playbackUrl;
+                const mediaUrl = playbackUrl || imageUrl;
+                const embedUrl = item.embedUrl.trim();
 
                 return {
                     id: item.id,
                     title,
                     hook,
                     description,
-                    imageUrl: item.imageUrl,
-                    mediaUrl: item.imageUrl,
+                    imageUrl,
+                    mediaUrl,
+                    embedUrl,
                     mime: item.mime,
                     orientation: detectOrientation(item.width, item.height, item.categories, index),
                     goal,
                     style,
                 };
             })
-            .filter((item) => item.mediaUrl.length > 0);
+            .filter((item) => item.mediaUrl.length > 0 || item.embedUrl.length > 0);
     }, [myWork?.media]);
 
     useEffect(() => {
         setMediaDimensions(null);
+        setShowMobileVideoDetails(false);
     }, [selectedVideo?.id]);
 
     if (videoShowcase.length === 0) {
@@ -134,8 +145,8 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
 
     const dialogSizeClass =
         selectedVideo?.orientation === "portrait"
-            ? "w-[88vw] max-w-[50rem]"
-            : "w-[96vw] max-w-[84rem]";
+            ? "md:w-[90vw] md:max-w-[56rem]"
+            : "md:w-[98vw] md:max-w-[92rem]";
 
     return (
         <section id="video-showcase" className="relative overflow-hidden py-12 lg:py-14">
@@ -301,21 +312,34 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                     onOpenChange={(open) => {
                         if (!open) {
                             setSelectedVideo(null);
+                            setShowMobileVideoDetails(false);
                         }
                     }}
                 >
-                    <DialogContent className={`p-0 max-h-[86vh] overflow-hidden ${dialogSizeClass}`}>
+                    <DialogContent
+                        className={`left-2 top-2 h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none translate-x-0 translate-y-0 overflow-y-auto p-0 sm:rounded-lg md:left-[50%] md:top-[50%] md:h-auto md:w-auto md:max-h-[86vh] md:overflow-hidden md:translate-x-[-50%] md:translate-y-[-50%] ${dialogSizeClass}`}
+                    >
                         {selectedVideo && (
-                            <div className="grid h-full max-h-[86vh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
-                                <div className="overflow-auto bg-background p-1.5">
-                                    <div className="flex min-h-full w-full items-center justify-center">
+                            <div className="min-h-full md:min-h-0 md:grid md:max-h-[86vh] md:grid-cols-[minmax(0,1fr)_360px] md:items-start">
+                                <div
+                                    className={`flex w-full justify-center bg-background p-3 md:h-auto md:min-h-0 md:items-start md:overflow-auto md:p-1.5 ${
+                                        selectedVideo.orientation === "portrait"
+                                            ? "min-h-[calc(100dvh-6rem)] items-center"
+                                            : "items-start"
+                                    }`}
+                                >
+                                    <div
+                                        className={`inline-flex max-w-[calc(100vw-1rem)] flex-col items-stretch ${
+                                            selectedVideo.orientation === "portrait" ? "w-fit" : "w-full"
+                                        }`}
+                                    >
                                         {isVideoAsset(selectedVideo.mediaUrl, selectedVideo.mime) ? (
                                             <video
                                                 src={selectedVideo.mediaUrl}
                                                 controls
                                                 autoPlay
                                                 playsInline
-                                                className="mx-auto block h-auto w-auto max-h-[78vh] max-w-full object-contain"
+                                                className="mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh]"
                                                 onLoadedMetadata={(event) => {
                                                     const videoElement = event.currentTarget;
                                                     setMediaDimensions({
@@ -324,13 +348,33 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                                     });
                                                 }}
                                             />
+                                        ) : selectedVideo.embedUrl ? (
+                                            <div
+                                                className={`relative mx-auto overflow-hidden bg-black ${
+                                                    selectedVideo.orientation === "portrait"
+                                                        ? "inline-block h-[calc(100dvh-5.5rem)] max-w-full md:h-[78vh]"
+                                                        : "w-full max-h-[calc(100dvh-5.5rem)] md:max-w-5xl md:max-h-[78vh]"
+                                                }`}
+                                                style={{
+                                                    aspectRatio: selectedVideo.orientation === "portrait" ? 9 / 16 : 16 / 9,
+                                                }}
+                                            >
+                                                <iframe
+                                                    src={selectedVideo.embedUrl}
+                                                    title={selectedVideo.title}
+                                                    loading="lazy"
+                                                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                                                    allowFullScreen
+                                                    className="absolute inset-0 h-full w-full border-0"
+                                                />
+                                            </div>
                                         ) : (
                                             <div className="relative inline-block max-w-full">
                                                 <img
                                                     src={getHighQualityImageUrl(selectedVideo.imageUrl)}
                                                     alt={selectedVideo.title}
                                                     {...protectedImageProps}
-                                                    className="mx-auto block h-auto w-auto max-h-[78vh] max-w-full object-contain"
+                                                    className="mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh]"
                                                     onLoad={(event) => {
                                                         const imageElement = event.currentTarget;
                                                         setMediaDimensions({
@@ -342,12 +386,84 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                                 <PhotoProtectionOverlay />
                                             </div>
                                         )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMobileVideoDetails((current) => !current)}
+                                            aria-label={showMobileVideoDetails ? "Hide details" : "Show details"}
+                                            className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-foreground md:hidden"
+                                        >
+                                            {showMobileVideoDetails ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                            <span className="font-body text-xs uppercase tracking-[0.14em]">
+                                                {showMobileVideoDetails ? "Hide Details" : "Show Details"}
+                                            </span>
+                                        </button>
+
+                                        {showMobileVideoDetails && (
+                                            <div className="mt-3 pb-6 md:hidden">
+                                                <div className="space-y-2.5 border-t border-border pt-3">
+                                                    <p className="font-display text-xl font-light italic leading-tight text-foreground">
+                                                        {selectedVideo.title}
+                                                    </p>
+
+                                                    {selectedVideo.description && (
+                                                        <p className="font-body text-sm leading-relaxed text-muted-foreground">
+                                                            {selectedVideo.description}
+                                                        </p>
+                                                    )}
+
+                                                    {selectedVideo.hook && (
+                                                        <>
+                                                            <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                                Hook
+                                                            </p>
+                                                            <p className="font-display text-base italic text-foreground leading-tight">
+                                                                {selectedVideo.hook}
+                                                            </p>
+                                                        </>
+                                                    )}
+
+                                                    {selectedVideo.goal && (
+                                                        <>
+                                                            <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                                Goal
+                                                            </p>
+                                                            <p className="font-body text-sm text-foreground">{selectedVideo.goal}</p>
+                                                        </>
+                                                    )}
+
+                                                    {selectedVideo.style && (
+                                                        <>
+                                                            <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                                Style
+                                                            </p>
+                                                            <p className="font-body text-sm text-foreground">{selectedVideo.style}</p>
+                                                        </>
+                                                    )}
+
+                                                    <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                        Orientation
+                                                    </p>
+                                                    <p className="font-body text-sm capitalize text-foreground">
+                                                        {selectedVideo.orientation}
+                                                    </p>
+
+                                                    <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                        Resolution
+                                                    </p>
+                                                    <p className="font-body text-sm text-foreground">
+                                                        {mediaDimensions
+                                                            ? `${mediaDimensions.width} x ${mediaDimensions.height}px`
+                                                            : "Loading..."}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                <div className="overflow-auto border-t border-border bg-background p-4 pt-12 md:border-l md:border-t-0 md:p-5 md:pt-12">
-                                    <DialogHeader className="text-left">
-                                        <DialogTitle className="font-display text-2xl font-light italic leading-tight text-foreground">
+                                <div className="hidden overflow-auto border-t border-border bg-background p-4 pt-12 md:block md:max-h-[78vh] md:border-l md:border-t-0 md:p-5 md:pt-14">
+                                    <DialogHeader className="text-left pr-12 md:pr-14">
+                                        <DialogTitle className="break-words font-display text-2xl font-light italic leading-tight text-foreground">
                                             {selectedVideo.title}
                                         </DialogTitle>
                                         {selectedVideo.description && (

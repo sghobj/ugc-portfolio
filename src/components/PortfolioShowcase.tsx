@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Clapperboard, Layers, Play, Sparkles } from "lucide-react";
+import { ArrowUpRight, Clapperboard, Eye, EyeOff, Layers, Play, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -263,6 +263,14 @@ const toStoryMediaFromCms = (entry: UgcWorkMediaContent): StoryMedia => {
     const hook = trimOrEmpty(entry.hook);
     const goal = trimOrEmpty(entry.goal);
     const style = trimOrEmpty(entry.style);
+    const mediaUrl =
+        entry.kind === "video"
+            ? entry.playbackUrl || entry.sourceUrl || entry.embedUrl || entry.imageUrl
+            : entry.sourceUrl || entry.imageUrl || entry.thumbnailUrl || entry.playbackUrl || entry.embedUrl;
+    const previewUrl =
+        entry.kind === "video"
+            ? entry.thumbnailUrl || entry.imageUrl || entry.sourceUrl || entry.playbackUrl
+            : entry.imageUrl || entry.sourceUrl || entry.thumbnailUrl || entry.playbackUrl;
 
     return {
         id: entry.id,
@@ -272,8 +280,8 @@ const toStoryMediaFromCms = (entry: UgcWorkMediaContent): StoryMedia => {
         hook,
         goal,
         style,
-        mediaUrl: entry.sourceUrl || entry.playbackUrl || entry.embedUrl || entry.imageUrl,
-        previewUrl: entry.thumbnailUrl || entry.imageUrl || entry.sourceUrl || entry.playbackUrl,
+        mediaUrl,
+        previewUrl,
         provider: entry.provider,
         embedUrl: entry.embedUrl,
         playbackUrl: entry.playbackUrl,
@@ -362,11 +370,72 @@ const markdownComponents = {
     ),
 };
 
+const getCollectionPreviewGridClass = (count: number): string => {
+    if (count <= 1) {
+        return "grid-cols-1";
+    }
+
+    if (count <= 4) {
+        return "grid-cols-2";
+    }
+
+    if (count <= 6) {
+        return "grid-cols-2 md:grid-cols-3";
+    }
+
+    return "grid-cols-2 md:grid-cols-4";
+};
+
+const getCollectionPreviewAspectClass = (count: number): string => {
+    if (count <= 1) {
+        return "aspect-[16/10] md:aspect-[16/9]";
+    }
+
+    if (count <= 2) {
+        return "aspect-[4/3] md:aspect-[16/10]";
+    }
+
+    if (count <= 4) {
+        return "aspect-[4/3]";
+    }
+
+    return "aspect-square";
+};
+
+const getCollectionCardGridClass = (count: number): string => {
+    if (count <= 1) {
+        return "grid-cols-1";
+    }
+
+    if (count === 3) {
+        return "grid-cols-3";
+    }
+
+    return "grid-cols-2";
+};
+
+const getCollectionCardAspectClass = (count: number): string => {
+    if (count <= 1) {
+        return "aspect-[16/9]";
+    }
+
+    if (count === 2) {
+        return "aspect-[4/3]";
+    }
+
+    if (count === 3) {
+        return "aspect-[5/4]";
+    }
+
+    return "aspect-square";
+};
+
 const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const [activeLane, setActiveLane] = useState<ShowcaseLane>("highlights");
     const [selectedCollection, setSelectedCollection] = useState<StoryCollection | null>(null);
     const [selectedMedia, setSelectedMedia] = useState<StoryMedia | null>(null);
     const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number } | null>(null);
+    const [showMobileMediaDetails, setShowMobileMediaDetails] = useState(false);
 
     const sectionName = myWork?.sectionName?.trim() ?? "";
     const sectionTitle = myWork?.title?.trim() ?? "";
@@ -461,6 +530,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
 
     useEffect(() => {
         setNaturalDimensions(null);
+        setShowMobileMediaDetails(false);
     }, [selectedMedia?.id]);
 
     useEffect(() => {
@@ -507,10 +577,10 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const mediaOrientation = getOrientation(selectedMedia?.width, selectedMedia?.height);
     const mediaDialogSizeClass =
         mediaOrientation === "landscape"
-            ? "w-[96vw] max-w-[84rem]"
+            ? "md:w-[98vw] md:max-w-[92rem]"
             : mediaOrientation === "portrait"
-                ? "w-[88vw] max-w-[50rem]"
-                : "w-[92vw] max-w-[62rem]";
+                ? "md:w-[90vw] md:max-w-[56rem]"
+                : "md:w-[94vw] md:max-w-[68rem]";
     const selectedMediaAspectRatio =
         getAspectRatio(selectedMedia?.width, selectedMedia?.height) ||
         getAspectRatio(naturalDimensions?.width, naturalDimensions?.height) ||
@@ -519,6 +589,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
             : mediaOrientation === "portrait"
                 ? 9 / 16
                 : 16 / 9);
+    const isMobileLandscapeMedia = mediaOrientation !== "portrait";
 
     return (
         <section id="portfolio" className="relative overflow-hidden py-14 lg:py-18">
@@ -601,99 +672,113 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        {collections.map((collection, index) => (
-                            <motion.article
-                                key={collection.id}
-                                initial={{ opacity: 0, y: 24 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true, margin: "-60px" }}
-                                transition={{ duration: 0.65, delay: index * 0.06 }}
-                                className="group overflow-hidden border border-border bg-card/80 backdrop-blur-sm"
-                            >
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedCollection(collection)}
-                                    className="block w-full text-left"
-                                    aria-label={`Open collection details for ${collection.title}`}
+                        {collections.map((collection, index) => {
+                            const previewEntries = collection.entries.slice(0, 4);
+                            const previewCount = previewEntries.length;
+
+                            return (
+                                <motion.article
+                                    key={collection.id}
+                                    initial={{ opacity: 0, y: 24 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-60px" }}
+                                    transition={{ duration: 0.65, delay: index * 0.06 }}
+                                    className="group overflow-hidden border border-border bg-card/80 backdrop-blur-sm"
                                 >
-                                    <div className="grid grid-cols-2 gap-1 border-b border-border bg-muted/35 p-1">
-                                        {collection.entries.slice(0, 4).map((entry) => {
-                                            const entryIsVideo = isVideoMedia(entry);
-                                            const previewUrl =
-                                                getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedCollection(collection)}
+                                        className="block w-full text-left"
+                                        aria-label={`Open collection details for ${collection.title}`}
+                                    >
+                                        <div
+                                            className={`grid gap-1 border-b border-border bg-muted/35 p-1 ${getCollectionCardGridClass(
+                                                previewCount,
+                                            )}`}
+                                        >
+                                            {previewEntries.map((entry) => {
+                                                const entryIsVideo = isVideoMedia(entry);
+                                                const previewUrl =
+                                                    getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
 
-                                            return (
-                                                <div key={entry.id} className="relative aspect-[4/3] overflow-hidden bg-muted">
-                                                    {canUseInlineVideoPreview(entry) ? (
-                                                        <video
-                                                            src={getVideoPlaybackUrl(entry)}
-                                                            muted
-                                                            loop
-                                                            autoPlay
-                                                            playsInline
-                                                            preload="metadata"
-                                                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                                        />
-                                                    ) : (
-                                                        <img
-                                                            src={getOptimizedImageUrl(previewUrl, IMAGE_WIDTHS[1], 540)}
-                                                            srcSet={getImageSrcSet(previewUrl, 540)}
-                                                            sizes={getImageSizes(previewUrl)}
-                                                            alt={entry.title}
-                                                            loading="lazy"
-                                                            decoding="async"
-                                                            {...protectedImageProps}
-                                                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                                        />
-                                                    )}
-                                                    {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
-                                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.06)_0%,rgba(8,8,8,0.52)_100%)]" />
-                                                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-background/92 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground">
-                                                        {entryIsVideo ? <Clapperboard className="h-3 w-3 text-accent" /> : <Layers className="h-3 w-3 text-accent" />}
-                                                        {entryIsVideo ? "Video" : "Frame"}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="p-4 sm:p-5">
-                                        {collection.subtitle && (
-                                            <p className="font-body text-[0.58rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                                {collection.subtitle}
-                                            </p>
-                                        )}
-                                        {collection.title && (
-                                            <h4 className="mt-2 font-display text-2xl font-light italic leading-tight text-foreground sm:text-3xl">
-                                                {collection.title}
-                                            </h4>
-                                        )}
-                                        {collection.story && (
-                                            <p className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
-                                                {truncateText(collection.story, 220)}
-                                            </p>
-                                        )}
-                                        {collection.highlights.length > 0 && (
-                                            <ul className="mt-3 space-y-1.5">
-                                                {collection.highlights.map((highlight) => (
-                                                    <li
-                                                        key={`${collection.id}-${highlight}`}
-                                                        className="flex items-start gap-2 font-body text-xs leading-relaxed text-foreground/80"
+                                                return (
+                                                    <div
+                                                        key={entry.id}
+                                                        className={`relative overflow-hidden bg-muted ${getCollectionCardAspectClass(
+                                                            previewCount,
+                                                        )}`}
                                                     >
-                                                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
-                                                        {highlight}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                        <span className="mt-4 inline-flex items-center gap-1.5 font-body text-[0.62rem] uppercase tracking-[0.16em] text-foreground">
-                                            Open Collection Story
-                                            <ArrowUpRight className="h-3.5 w-3.5 text-accent" />
-                                        </span>
-                                    </div>
-                                </button>
-                            </motion.article>
-                        ))}
+                                                        {canUseInlineVideoPreview(entry) ? (
+                                                            <video
+                                                                src={getVideoPlaybackUrl(entry)}
+                                                                muted
+                                                                loop
+                                                                autoPlay
+                                                                playsInline
+                                                                preload="metadata"
+                                                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                            />
+                                                        ) : (
+                                                            <img
+                                                                src={getOptimizedImageUrl(previewUrl, IMAGE_WIDTHS[1], 540)}
+                                                                srcSet={getImageSrcSet(previewUrl, 540)}
+                                                                sizes={getImageSizes(previewUrl)}
+                                                                alt={entry.title}
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                                {...protectedImageProps}
+                                                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                            />
+                                                        )}
+                                                        {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
+                                                        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.06)_0%,rgba(8,8,8,0.52)_100%)]" />
+                                                        <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-background/92 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground">
+                                                            {entryIsVideo ? <Clapperboard className="h-3 w-3 text-accent" /> : <Layers className="h-3 w-3 text-accent" />}
+                                                            {entryIsVideo ? "Video" : "Frame"}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="p-4 sm:p-5">
+                                            {collection.subtitle && (
+                                                <p className="font-body text-[0.58rem] uppercase tracking-[0.2em] text-muted-foreground">
+                                                    {collection.subtitle}
+                                                </p>
+                                            )}
+                                            {collection.title && (
+                                                <h4 className="mt-2 font-display text-2xl font-light italic leading-tight text-foreground sm:text-3xl">
+                                                    {collection.title}
+                                                </h4>
+                                            )}
+                                            {collection.story && (
+                                                <p className="mt-2 font-body text-sm leading-relaxed text-muted-foreground">
+                                                    {truncateText(collection.story, 220)}
+                                                </p>
+                                            )}
+                                            {collection.highlights.length > 0 && (
+                                                <ul className="mt-3 space-y-1.5">
+                                                    {collection.highlights.map((highlight) => (
+                                                        <li
+                                                            key={`${collection.id}-${highlight}`}
+                                                            className="flex items-start gap-2 font-body text-xs leading-relaxed text-foreground/80"
+                                                        >
+                                                            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
+                                                            {highlight}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            <span className="mt-4 inline-flex items-center gap-1.5 font-body text-[0.62rem] uppercase tracking-[0.16em] text-foreground">
+                                                Open Collection Story
+                                                <ArrowUpRight className="h-3.5 w-3.5 text-accent" />
+                                            </span>
+                                        </div>
+                                    </button>
+                                </motion.article>
+                            );
+                        })}
                     </div>
                 </div>
                 )}
@@ -928,19 +1013,23 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                     }
                 }}
             >
-                <DialogContent className="w-[96vw] max-w-5xl max-h-[86vh] overflow-y-auto p-0">
+                <DialogContent className="w-[97vw] max-w-6xl max-h-[86vh] overflow-y-auto p-0">
                     {selectedCollection && (
                         <div className="grid grid-cols-1 md:grid-cols-[1.08fr_0.92fr]">
                             <div className="border-b border-border bg-muted/30 p-3 sm:p-4 md:border-b-0 md:border-r">
-                                <div className="grid grid-cols-2 gap-2">
+                                <div
+                                    className={`grid gap-2 ${getCollectionPreviewGridClass(
+                                        selectedCollection.entries.length,
+                                    )}`}
+                                >
                                     {selectedCollection.entries.map((entry) => {
-                                        const mediaLabel = truncateText(
-                                            stripMarkdownInline(entry.hook || entry.title),
-                                            48,
-                                        );
-
                                         return (
-                                            <div key={entry.id} className="relative aspect-[4/3] overflow-hidden bg-background">
+                                            <div
+                                                key={entry.id}
+                                                className={`relative overflow-hidden bg-background ${getCollectionPreviewAspectClass(
+                                                    selectedCollection.entries.length,
+                                                )}`}
+                                            >
                                                 {canUseInlineVideoPreview(entry) ? (
                                                     <video
                                                         src={getVideoPlaybackUrl(entry)}
@@ -973,28 +1062,21 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                     />
                                                 )}
                                                 {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
-                                                {mediaLabel && (
-                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                                                        <p className="font-body text-[0.52rem] uppercase tracking-[0.12em] text-primary-foreground/90">
-                                                            {mediaLabel}
-                                                        </p>
-                                                    </div>
-                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
 
-                            <div className="p-5 pt-12 sm:p-6 sm:pt-12">
-                                <DialogHeader className="text-left">
+                            <div className="p-5 pt-12 sm:p-6 sm:pt-12 md:pt-14">
+                                <DialogHeader className="text-left pr-12 md:pr-14">
                                     {selectedCollection.subtitle && (
                                         <p className="font-body text-[0.58rem] uppercase tracking-[0.18em] text-muted-foreground">
                                             {selectedCollection.subtitle}
                                         </p>
                                     )}
                                     {selectedCollection.title && (
-                                        <DialogTitle className="font-display text-3xl font-light italic leading-tight text-foreground">
+                                        <DialogTitle className="break-words font-display text-3xl font-light italic leading-tight text-foreground">
                                             {selectedCollection.title}
                                         </DialogTitle>
                                     )}
@@ -1066,17 +1148,45 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                 onOpenChange={(open) => {
                     if (!open) {
                         setSelectedMedia(null);
+                        setShowMobileMediaDetails(false);
                     }
                 }}
             >
-                <DialogContent className={`p-0 max-h-[86vh] overflow-hidden ${mediaDialogSizeClass}`}>
+                <DialogContent
+                    className={`left-2 top-2 h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none translate-x-0 translate-y-0 overflow-y-auto p-0 sm:rounded-lg md:left-[50%] md:top-[50%] md:h-auto md:w-auto md:max-h-[86vh] md:overflow-hidden md:translate-x-[-50%] md:translate-y-[-50%] ${mediaDialogSizeClass}`}
+                >
                     {selectedMedia && (
-                        <div className="grid h-full max-h-[86vh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_330px]">
-                            <div className="overflow-auto bg-background p-1.5">
-                                <div className="flex min-h-full w-full items-center justify-center">
-                                    {isVideoMedia(selectedMedia) && isBunnyVideo(selectedMedia) ? (
+                        <div className="min-h-full md:min-h-0 md:grid md:max-h-[86vh] md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
+                            <div
+                                className={`flex w-full justify-center bg-background p-3 md:h-auto md:min-h-0 md:items-start md:overflow-auto md:p-1.5 ${
+                                    isMobileLandscapeMedia
+                                        ? "items-start"
+                                        : "min-h-[calc(100dvh-6rem)] items-center"
+                                }`}
+                            >
+                                <div
+                                    className={`inline-flex max-w-[calc(100vw-1rem)] flex-col items-stretch ${
+                                        isMobileLandscapeMedia ? "w-full" : "w-fit"
+                                    }`}
+                                >
+                                    {isVideoAsset(getVideoPlaybackUrl(selectedMedia), selectedMedia.mime) ? (
+                                        <video
+                                            src={getVideoPlaybackUrl(selectedMedia)}
+                                            controls
+                                            autoPlay
+                                            playsInline
+                                            className="mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh]"
+                                            onLoadedMetadata={(event) => {
+                                                const media = event.currentTarget;
+                                                setNaturalDimensions({
+                                                    width: media.videoWidth,
+                                                    height: media.videoHeight,
+                                                });
+                                            }}
+                                        />
+                                    ) : isVideoMedia(selectedMedia) && isBunnyVideo(selectedMedia) ? (
                                         <div
-                                            className={`relative mx-auto overflow-hidden bg-black ${selectedMediaAspectRatio < 1 ? "inline-block h-[78vh] max-w-full" : "w-full max-w-5xl"}`}
+                                            className={`relative mx-auto overflow-hidden bg-black ${selectedMediaAspectRatio < 1 ? "inline-block h-[calc(100dvh-5.5rem)] max-w-full md:h-[78vh]" : "w-full max-h-[calc(100dvh-5.5rem)] md:max-w-5xl md:max-h-[78vh]"}`}
                                             style={{ aspectRatio: selectedMediaAspectRatio }}
                                         >
                                             <iframe
@@ -1088,21 +1198,6 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                 className="absolute inset-0 h-full w-full border-0"
                                             />
                                         </div>
-                                    ) : isVideoAsset(getVideoPlaybackUrl(selectedMedia), selectedMedia.mime) ? (
-                                        <video
-                                            src={getVideoPlaybackUrl(selectedMedia)}
-                                            controls
-                                            autoPlay
-                                            playsInline
-                                            className="mx-auto block h-auto w-auto max-h-[78vh] max-w-full object-contain"
-                                            onLoadedMetadata={(event) => {
-                                                const media = event.currentTarget;
-                                                setNaturalDimensions({
-                                                    width: media.videoWidth,
-                                                    height: media.videoHeight,
-                                                });
-                                            }}
-                                        />
                                     ) : (
                                         <div className="relative inline-block max-w-full">
                                             <img
@@ -1114,7 +1209,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                 )}
                                                 alt={selectedMedia.title}
                                                 {...protectedImageProps}
-                                                className="mx-auto block h-auto w-auto max-h-[78vh] max-w-full object-contain"
+                                                className="mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh]"
                                                 onLoad={(event) => {
                                                     const media = event.currentTarget;
                                                     setNaturalDimensions({
@@ -1126,12 +1221,91 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                             <PhotoProtectionOverlay />
                                         </div>
                                     )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowMobileMediaDetails((current) => !current)}
+                                        aria-label={showMobileMediaDetails ? "Hide details" : "Show details"}
+                                        className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background text-foreground md:hidden"
+                                    >
+                                        {showMobileMediaDetails ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                        <span className="font-body text-xs uppercase tracking-[0.14em]">
+                                            {showMobileMediaDetails ? "Hide Details" : "Show Details"}
+                                        </span>
+                                    </button>
+
+                                    {showMobileMediaDetails && (
+                                        <div className="mt-3 pb-6 md:hidden">
+                                            <div className="space-y-2.5 border-t border-border pt-3">
+                                                <p className="font-display text-xl font-light italic leading-tight text-foreground">
+                                                    {selectedMedia.title}
+                                                </p>
+
+                                                {selectedMedia.description && (
+                                                    <div className="font-body text-sm leading-relaxed text-muted-foreground">
+                                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                                            {selectedMedia.description}
+                                                        </ReactMarkdown>
+                                                    </div>
+                                                )}
+
+                                                {selectedMedia.hook && (
+                                                    <>
+                                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                            Hook
+                                                        </p>
+                                                        <p className="font-display text-base italic leading-tight text-foreground">
+                                                            {selectedMedia.hook}
+                                                        </p>
+                                                    </>
+                                                )}
+
+                                                {selectedMedia.goal && (
+                                                    <>
+                                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                            Goal
+                                                        </p>
+                                                        <p className="font-body text-sm text-foreground">{selectedMedia.goal}</p>
+                                                    </>
+                                                )}
+
+                                                {selectedMedia.style && (
+                                                    <>
+                                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                            Style
+                                                        </p>
+                                                        <p className="font-body text-sm text-foreground">{selectedMedia.style}</p>
+                                                    </>
+                                                )}
+
+                                                <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                    Format
+                                                </p>
+                                                <p className="font-body text-sm text-foreground">
+                                                    {isVideoMedia(selectedMedia) ? "Video" : "Photo"}
+                                                </p>
+
+                                                {(naturalDimensions ||
+                                                    (selectedMedia.width && selectedMedia.height)) && (
+                                                    <>
+                                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                            Resolution
+                                                        </p>
+                                                        <p className="font-body text-sm text-foreground">
+                                                            {naturalDimensions
+                                                                ? `${naturalDimensions.width} x ${naturalDimensions.height}px`
+                                                                : `${selectedMedia.width} x ${selectedMedia.height}px`}
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="overflow-auto border-t border-border bg-background p-4 pt-12 md:border-l md:border-t-0 md:p-5 md:pt-12">
-                                <DialogHeader className="text-left">
-                                    <DialogTitle className="font-display text-2xl font-light italic leading-tight text-foreground">
+                            <div className="hidden overflow-auto border-t border-border bg-background p-4 pt-12 md:block md:max-h-[78vh] md:border-l md:border-t-0 md:p-5 md:pt-14">
+                                <DialogHeader className="text-left pr-12 md:pr-14">
+                                    <DialogTitle className="break-words font-display text-2xl font-light italic leading-tight text-foreground">
                                         {selectedMedia.title}
                                     </DialogTitle>
                                     {selectedMedia.description && (
