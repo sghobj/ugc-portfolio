@@ -10,6 +10,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import type { UgcWorkContent } from "@/hooks/useUgcContent";
+import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 
 type CinematicVideoSectionProps = {
     myWork?: UgcWorkContent;
@@ -152,7 +153,7 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
             : "w-[96vw] max-w-[84rem]";
 
     return (
-        <section id="video-showcase" className="relative overflow-hidden py-16 lg:py-20">
+        <section id="video-showcase" className="relative overflow-hidden py-12 lg:py-14">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,hsl(var(--accent)/0.2),transparent_35%),radial-gradient(circle_at_90%_0%,hsl(var(--accent)/0.14),transparent_35%),linear-gradient(145deg,hsl(var(--foreground))_0%,hsl(var(--foreground)/0.96)_100%)]" />
             <div className="absolute inset-0 opacity-10 [background-image:linear-gradient(to_right,hsl(var(--primary-foreground)/0.2)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary-foreground)/0.2)_1px,transparent_1px)] [background-size:52px_52px]" />
 
@@ -162,21 +163,21 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.8 }}
-                    className="mx-auto mb-10 max-w-2xl text-center"
+                    className="mx-auto mb-8 max-w-2xl text-center"
                 >
-                    <p className="mb-3 inline-flex items-center gap-2 border border-primary-foreground/30 bg-primary-foreground/10 px-3 py-1.5 font-body text-[0.65rem] uppercase tracking-[0.2em] text-primary-foreground/80">
+                    <p className="mb-2.5 inline-flex items-center gap-2 border border-primary-foreground/30 bg-primary-foreground/10 px-3 py-1.5 font-body text-[0.65rem] uppercase tracking-[0.2em] text-primary-foreground/80">
                         <Sparkles className="h-3.5 w-3.5 text-accent" />
                         Cinematic Storytelling UGC
                     </p>
                     <h2 className="font-display text-3xl font-light italic leading-tight text-primary-foreground sm:text-4xl lg:text-5xl">
                         Signature Video Concepts That Make Brands Unforgettable
                     </h2>
-                    <p className="mx-auto mt-4 max-w-xl font-body text-sm leading-relaxed text-primary-foreground/75">
+                    <p className="mx-auto mt-3 max-w-xl font-body text-sm leading-relaxed text-primary-foreground/75">
                         Cinematic hooks, conversion-minded structure, and brand-safe storytelling built for deals.
                     </p>
                 </motion.div>
 
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
                     {videoShowcase.map((video, index) => (
                         <motion.div
                             key={video.id}
@@ -192,7 +193,7 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                 aria-label={`Open media preview for ${video.title}`}
                                 className="relative block h-full w-full text-left"
                             >
-                                <div className="relative h-[340px] sm:h-[380px] lg:h-[360px]">
+                                <div className="relative h-[300px] sm:h-[330px] lg:h-[320px]">
                                     {isVideoAsset(video.mediaUrl, video.mime) ? (
                                         <video
                                             src={video.mediaUrl}
@@ -208,9 +209,11 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                             src={video.imageUrl}
                                             alt={video.title}
                                             loading="lazy"
+                                            {...protectedImageProps}
                                             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                                         />
                                     )}
+                                    {!isVideoAsset(video.mediaUrl, video.mime) && <PhotoProtectionOverlay />}
                                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.2)_0%,rgba(8,8,8,0.78)_72%)]" />
 
                                     <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
@@ -227,14 +230,14 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                         <Play className="h-3.5 w-3.5" />
                                     </span>
 
-                                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+                                    <div className="absolute bottom-0 left-0 right-0 p-3.5 sm:p-4">
                                         <p className="mb-1.5 font-body text-[0.58rem] uppercase tracking-[0.18em] text-primary-foreground/70">
                                             Hook
                                         </p>
                                         <h3 className="font-display text-xl font-light italic leading-tight text-primary-foreground sm:text-2xl">
                                             {video.hook}
                                         </h3>
-                                        <div className="mt-2 max-h-20 max-w-2xl overflow-hidden font-body text-xs leading-relaxed text-primary-foreground/80 sm:text-sm">
+                                        <div className="mt-2 max-h-16 max-w-2xl overflow-hidden font-body text-xs leading-relaxed text-primary-foreground/80 sm:text-sm">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm]}
                                                 components={{
@@ -288,7 +291,7 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                                 {video.description}
                                             </ReactMarkdown>
                                         </div>
-                                        <p className="mt-3 inline-flex items-center gap-2 font-body text-[0.65rem] uppercase tracking-[0.14em] text-primary-foreground/72 sm:text-xs">
+                                        <p className="mt-2.5 inline-flex items-center gap-2 font-body text-[0.65rem] uppercase tracking-[0.14em] text-primary-foreground/72 sm:text-xs">
                                             {video.style}
                                         </p>
                                     </div>
@@ -306,10 +309,10 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                         }
                     }}
                 >
-                    <DialogContent className={`p-0 max-h-[90vh] overflow-hidden ${dialogSizeClass}`}>
+                    <DialogContent className={`p-0 max-h-[86vh] overflow-hidden ${dialogSizeClass}`}>
                         {selectedVideo && (
-                            <div className="grid h-full max-h-[90vh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
-                                <div className="overflow-auto bg-background p-2">
+                            <div className="grid h-full max-h-[86vh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
+                                <div className="overflow-auto bg-background p-1.5">
                                     <div className="flex min-h-full w-full items-center justify-center">
                                         {isVideoAsset(selectedVideo.mediaUrl, selectedVideo.mime) ? (
                                             <video
@@ -317,7 +320,7 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                                 controls
                                                 autoPlay
                                                 playsInline
-                                                className="mx-auto block h-auto w-auto max-h-[82vh] max-w-full object-contain"
+                                                className="mx-auto block h-auto w-auto max-h-[78vh] max-w-full object-contain"
                                                 onLoadedMetadata={(event) => {
                                                     const videoElement = event.currentTarget;
                                                     setMediaDimensions({
@@ -327,23 +330,27 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                                 }}
                                             />
                                         ) : (
-                                            <img
-                                                src={getHighQualityImageUrl(selectedVideo.imageUrl)}
-                                                alt={selectedVideo.title}
-                                                className="mx-auto block h-auto w-auto max-h-[82vh] max-w-full object-contain"
-                                                onLoad={(event) => {
-                                                    const imageElement = event.currentTarget;
-                                                    setMediaDimensions({
-                                                        width: imageElement.naturalWidth,
-                                                        height: imageElement.naturalHeight,
-                                                    });
-                                                }}
-                                            />
+                                            <div className="relative inline-block max-w-full">
+                                                <img
+                                                    src={getHighQualityImageUrl(selectedVideo.imageUrl)}
+                                                    alt={selectedVideo.title}
+                                                    {...protectedImageProps}
+                                                    className="mx-auto block h-auto w-auto max-h-[78vh] max-w-full object-contain"
+                                                    onLoad={(event) => {
+                                                        const imageElement = event.currentTarget;
+                                                        setMediaDimensions({
+                                                            width: imageElement.naturalWidth,
+                                                            height: imageElement.naturalHeight,
+                                                        });
+                                                    }}
+                                                />
+                                                <PhotoProtectionOverlay />
+                                            </div>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="overflow-auto border-t border-border bg-background p-5 md:border-l md:border-t-0 md:p-6">
+                                <div className="overflow-auto border-t border-border bg-background p-4 pt-12 md:border-l md:border-t-0 md:p-5 md:pt-12">
                                     <DialogHeader className="text-left">
                                         <DialogTitle className="font-display text-2xl font-light italic leading-tight text-foreground">
                                             {selectedVideo.title}
@@ -404,7 +411,7 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                         </div>
                                     </DialogHeader>
 
-                                    <div className="mt-6 space-y-3 border-t border-border pt-4">
+                                    <div className="mt-4 space-y-2.5 border-t border-border pt-3">
                                         <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
                                             Hook
                                         </p>

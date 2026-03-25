@@ -1,326 +1,425 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import Navbar from '@/components/Navbar'
-import { clearInstagramPanelToken } from '@/lib/instagramPanelAuth'
+import { Progress } from '@/components/ui/progress'
+import { clearUgcAdminToken, getUgcAdminMe, getUgcAdminToken } from '@/lib/ugcAdminAuth'
+import {
+  createBunnyVideoUploadStart,
+  createCloudinaryUploadSignature,
+  createUgcAdminAsset,
+  createUgcAdminCategory,
+  createUgcAdminCollection,
+  deleteUgcAdminAsset,
+  fetchUgcAdminConfig,
+  getBunnyVideoPlayData,
+  listUgcAdminAssets,
+  listUgcAdminCategories,
+  listUgcAdminCollections,
+  uploadFileToBunnyTus,
+  uploadFileToCloudinary,
+  type UgcAdminAsset,
+  type UgcAdminCategory,
+  type UgcAdminConfig,
+  type UgcAdminCollection,
+} from '@/lib/ugcAdminApi'
+import { useNavigate } from 'react-router-dom'
 
-type TaskItem = {
-  task: string
-  detail: string
-}
+type UploadKind = 'photo' | 'video'
 
-type PhaseItem = {
-  id: number
-  label: string
+type UserState = {
+  username?: string | null
+  email?: string | null
+  role?: {
+    type?: string | null
+    name?: string | null
+  } | null
+} | null
+
+type AssetFormState = {
+  kind: UploadKind
   title: string
-  timeline: string
+  description: string
+  hook: string
   goal: string
-  tasks: TaskItem[]
+  style: string
+  collectionId: string
 }
 
-type MetricItem = {
-  label: string
-  target: string
-  why: string
+const emptyAssetForm: AssetFormState = {
+  kind: 'photo',
+  title: '',
+  description: '',
+  hook: '',
+  goal: '',
+  style: '',
+  collectionId: '',
 }
 
-type BrandItem = {
-  category: string
-  examples: string
-  approach: string
-}
+const asString = (value: unknown): string => (typeof value === 'string' ? value : '')
 
-const panelData: {
-  phases: PhaseItem[]
-  metrics: MetricItem[]
-  brands: BrandItem[]
-} = {
-  phases: [
-    {
-      id: 1,
-      label: 'Phase 1',
-      title: 'Foundation',
-      timeline: 'Now -> Month 2',
-      goal: 'Build a brandable profile that makes your value clear in seconds.',
-      tasks: [
-        {
-          task: 'Craft a keyword-rich bio',
-          detail:
-            "Example: Luxury travel and city culture | Experiences worth your passport stamp | UGC and collabs",
-        },
-        {
-          task: 'Set a consistent aesthetic',
-          detail:
-            'Choose 2-3 warm or cinematic tones and keep every post visually aligned.',
-        },
-        {
-          task: 'Shoot 9-12 portfolio posts',
-          detail:
-            'Create sample work even before brand deals: hotel lobbies, cafes, skylines, car visuals.',
-        },
-        {
-          task: 'Create a basic media kit',
-          detail:
-            'One page with your niche, audience, style, and content offers.',
-        },
-        {
-          task: 'Post consistently 4-5 times per week',
-          detail:
-            'Use 3 Reels and 2 carousels minimum to balance reach and saves.',
-        },
-      ],
-    },
-    {
-      id: 2,
-      label: 'Phase 2',
-      title: 'Growth Engine',
-      timeline: 'Month 2 -> Month 4',
-      goal: 'Grow to 1K-3K followers through strong discoverability and daily community activity.',
-      tasks: [
-        {
-          task: 'Use SEO-style captions',
-          detail:
-            "Include searchable phrases like 'best rooftop in Lisbon' or 'luxury hotel review Rome'.",
-        },
-        {
-          task: 'Apply a structured hashtag mix',
-          detail:
-            'Use 5 niche, 5 medium, and 3 broad hashtags. Keep total around 15.',
-        },
-        {
-          task: 'Collaborate with micro creators',
-          detail:
-            'Partner with creators in adjacent niches and similar audience size.',
-        },
-        {
-          task: 'Do daily engagement sessions',
-          detail:
-            'Spend 30 minutes commenting on relevant creator and brand posts.',
-        },
-        {
-          task: 'Pitch 5-10 local brands',
-          detail:
-            'Offer value-first UGC packages for boutique hotels, rentals, and tourism brands.',
-        },
-      ],
-    },
-    {
-      id: 3,
-      label: 'Phase 3',
-      title: 'UGC Launch',
-      timeline: 'Month 3 -> Month 5',
-      goal: 'Secure your first paid or gifted UGC deals and build a conversion-ready portfolio.',
-      tasks: [
-        {
-          task: 'Build your UGC portfolio page',
-          detail:
-            'Show your strongest 6-9 content pieces and clear offer packages.',
-        },
-        {
-          task: 'Start cold outreach',
-          detail:
-            'Send personalized DM or email pitches to marketing teams.',
-        },
-        {
-          task: 'Join UGC platforms',
-          detail:
-            'Create profiles on creator marketplaces to access paid briefs.',
-        },
-        {
-          task: 'Publish ad-style sample content',
-          detail:
-            'Post content that already looks campaign-ready even before paid deals.',
-        },
-        {
-          task: 'Set starter rates',
-          detail:
-            'Establish base UGC rates and separate usage or posting fees.',
-        },
-      ],
-    },
-    {
-      id: 4,
-      label: 'Phase 4',
-      title: 'Scale and Brand',
-      timeline: 'Month 5+',
-      goal: 'Move into repeat retainers and stronger brand authority with consistent case studies.',
-      tasks: [
-        {
-          task: 'Pitch larger brands with proof',
-          detail:
-            'Use view, reach, and engagement wins from early projects as social proof.',
-        },
-        {
-          task: 'Launch a repeatable content series',
-          detail:
-            'A recurring format improves retention and increases pitchability.',
-        },
-        {
-          task: 'Apply for hosted stays and press trips',
-          detail:
-            'Target tourism boards and destination campaigns with portfolio examples.',
-        },
-        {
-          task: 'Repurpose to TikTok',
-          detail:
-            'Dual-platform content increases deal value for brands.',
-        },
-        {
-          task: 'Increase rates and offer retainers',
-          detail:
-            'Shift to monthly packages with clear deliverables and reporting.',
-        },
-      ],
-    },
-  ],
-  metrics: [
-    {
-      label: 'Follower Growth Rate',
-      target: '>5% monthly',
-      why: 'Signals healthy account momentum.',
-    },
-    {
-      label: 'Engagement Rate',
-      target: '>3-5%',
-      why: 'Brands prioritize this over follower count alone.',
-    },
-    {
-      label: 'Reel Reach',
-      target: '2-5x follower count',
-      why: 'Shows discovery beyond your existing audience.',
-    },
-    {
-      label: 'Saves per Post',
-      target: '>1% of reach',
-      why: 'Saves are a strong quality signal to the algorithm.',
-    },
-    {
-      label: 'Profile Visits from Posts',
-      target: 'Track weekly',
-      why: 'Measures content-to-interest conversion.',
-    },
-    {
-      label: 'Link-in-Bio Clicks',
-      target: 'Track weekly',
-      why: 'Useful in brand pitch decks and case studies.',
-    },
-  ],
-  brands: [
-    {
-      category: 'Hotels and Stays',
-      examples: 'Marriott Bonvoy, boutique hotels, Airbnb Luxe',
-      approach:
-        'Tag properties consistently, then outreach with a campaign-style sample reel concept.',
-    },
-    {
-      category: 'Airlines and Airports',
-      examples: 'Regional carriers, premium lounges, route campaigns',
-      approach:
-        'Publish aspirational transit stories and tag airline plus airport profiles together.',
-    },
-    {
-      category: 'Car and Rental Brands',
-      examples: 'Hertz, Sixt, Turo, premium local agencies',
-      approach:
-        'Pitch destination plus vehicle storytelling with clear lifestyle framing.',
-    },
-    {
-      category: 'City Tourism Boards',
-      examples: 'Visit Dubai, Visit Portugal, NYC Tourism',
-      approach:
-        'Use board campaign tags and submit creator applications with your portfolio.',
-    },
-    {
-      category: 'Travel Accessories',
-      examples: 'Luggage, carry tech, travel utility products',
-      approach:
-        'Offer practical product demos mixed with destination storytelling.',
-    },
-  ],
-}
-
-const TAB_ROADMAP = 'roadmap'
-const TAB_METRICS = 'metrics'
-const TAB_BRANDS = 'brands'
-
-const panelTabs = [
-  { id: TAB_ROADMAP, label: 'Growth Roadmap' },
-  { id: TAB_METRICS, label: 'Key Metrics' },
-  { id: TAB_BRANDS, label: 'Brand Targets' },
-] as const
-
-type PanelTab = (typeof panelTabs)[number]['id']
-type CheckedTaskMap = Record<string, boolean>
-
-type PhaseTheme = {
-  badgeBg: string
-  badgeText: string
-  border: string
-  progress: string
-  soft: string
-}
-
-const phaseThemes: Record<number, PhaseTheme> = {
-  1: {
-    badgeBg: 'bg-amber-100',
-    badgeText: 'text-amber-700',
-    border: 'border-amber-200',
-    progress: 'bg-amber-500',
-    soft: 'bg-amber-50',
-  },
-  2: {
-    badgeBg: 'bg-sky-100',
-    badgeText: 'text-sky-700',
-    border: 'border-sky-200',
-    progress: 'bg-sky-500',
-    soft: 'bg-sky-50',
-  },
-  3: {
-    badgeBg: 'bg-emerald-100',
-    badgeText: 'text-emerald-700',
-    border: 'border-emerald-200',
-    progress: 'bg-emerald-500',
-    soft: 'bg-emerald-50',
-  },
-  4: {
-    badgeBg: 'bg-rose-100',
-    badgeText: 'text-rose-700',
-    border: 'border-rose-200',
-    progress: 'bg-rose-500',
-    soft: 'bg-rose-50',
-  },
-}
-
-const getPhaseTheme = (phaseId: number): PhaseTheme => phaseThemes[phaseId] ?? phaseThemes[1]
-
-const getTaskKey = (phaseId: number, index: number): string => `${phaseId}-${index}`
+const isBunnyAsset = (asset: UgcAdminAsset): boolean =>
+  (asset.storageProvider || '').toLowerCase() === 'bunny' || Boolean(asset.bunny?.videoId)
 
 export const InstagramPanel = () => {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<PanelTab>(TAB_ROADMAP)
-  const [expandedPhase, setExpandedPhase] = useState<number | null>(1)
-  const [checkedTasks, setCheckedTasks] = useState<CheckedTaskMap>({})
+  const [token, setToken] = useState<string | null>(null)
+  const [user, setUser] = useState<UserState>(null)
+  const [config, setConfig] = useState<UgcAdminConfig | null>(null)
+  const [categories, setCategories] = useState<UgcAdminCategory[]>([])
+  const [collections, setCollections] = useState<UgcAdminCollection[]>([])
+  const [assets, setAssets] = useState<UgcAdminAsset[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmittingCategory, setIsSubmittingCategory] = useState(false)
+  const [isSubmittingCollection, setIsSubmittingCollection] = useState(false)
+  const [isSubmittingAsset, setIsSubmittingAsset] = useState(false)
+  const [categoryName, setCategoryName] = useState('')
+  const [categorySlug, setCategorySlug] = useState('')
+  const [collectionName, setCollectionName] = useState('')
+  const [collectionSlug, setCollectionSlug] = useState('')
+  const [collectionDescription, setCollectionDescription] = useState('')
+  const [assetForm, setAssetForm] = useState<AssetFormState>(emptyAssetForm)
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const maxUploadMb = useMemo(() => config?.maxUploadMb ?? 1000, [config?.maxUploadMb])
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'auto' })
-  }, [])
+    const currentToken = getUgcAdminToken()
+    if (!currentToken) {
+      navigate('/admin/login', { replace: true })
+      return
+    }
 
-  const toggleTask = (phaseId: number, index: number): void => {
-    const taskKey = getTaskKey(phaseId, index)
-    setCheckedTasks((previous) => ({ ...previous, [taskKey]: !previous[taskKey] }))
+    setToken(currentToken)
+  }, [navigate])
+
+  const loadData = async (activeToken: string): Promise<void> => {
+    const [me, cfg, categoryRows, collectionRows, assetRows] = await Promise.all([
+      getUgcAdminMe(activeToken),
+      fetchUgcAdminConfig(),
+      listUgcAdminCategories(activeToken),
+      listUgcAdminCollections(activeToken),
+      listUgcAdminAssets(activeToken),
+    ])
+
+    setUser(me)
+    setConfig(cfg)
+    setCategories(categoryRows)
+    setCollections(collectionRows)
+    setAssets(assetRows)
   }
 
-  const getPhaseProgress = (phase: PhaseItem): number => {
-    const doneCount = phase.tasks.reduce((count, _, index) => {
-      const taskKey = getTaskKey(phase.id, index)
-      return checkedTasks[taskKey] ? count + 1 : count
-    }, 0)
+  useEffect(() => {
+    if (!token) {
+      return
+    }
 
-    return Math.round((doneCount / phase.tasks.length) * 100)
-  }
+    let mounted = true
+
+    const run = async (): Promise<void> => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        await loadData(token)
+      } catch (loadError) {
+        if (!mounted) {
+          return
+        }
+
+        const messageText =
+          loadError instanceof Error && loadError.message
+            ? loadError.message
+            : 'Could not load admin dashboard.'
+        setError(messageText)
+      } finally {
+        if (mounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [token])
 
   const handleLogout = (): void => {
-    clearInstagramPanelToken()
-    navigate('/instagram-login', { replace: true })
+    clearUgcAdminToken()
+    navigate('/admin/login', { replace: true })
+  }
+
+  const handleRefresh = async (): Promise<void> => {
+    if (!token) {
+      return
+    }
+
+    setError(null)
+    setMessage(null)
+
+    try {
+      await loadData(token)
+      setMessage('Dashboard data refreshed.')
+    } catch (refreshError) {
+      const messageText =
+        refreshError instanceof Error && refreshError.message
+          ? refreshError.message
+          : 'Could not refresh dashboard.'
+      setError(messageText)
+    }
+  }
+
+  const handleCreateCategory = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+
+    if (!token) {
+      return
+    }
+
+    if (!categoryName.trim()) {
+      setError('Category name is required.')
+      return
+    }
+
+    setIsSubmittingCategory(true)
+    setError(null)
+    setMessage(null)
+
+    try {
+      await createUgcAdminCategory(token, {
+        name: categoryName.trim(),
+        slug: categorySlug.trim() || undefined,
+      })
+      setCategoryName('')
+      setCategorySlug('')
+      await loadData(token)
+      setMessage('Category created.')
+    } catch (createError) {
+      const messageText =
+        createError instanceof Error && createError.message
+          ? createError.message
+          : 'Could not create category.'
+      setError(messageText)
+    } finally {
+      setIsSubmittingCategory(false)
+    }
+  }
+
+  const handleCreateCollection = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+
+    if (!token) {
+      return
+    }
+
+    if (!collectionName.trim()) {
+      setError('Collection name is required.')
+      return
+    }
+
+    setIsSubmittingCollection(true)
+    setError(null)
+    setMessage(null)
+
+    try {
+      await createUgcAdminCollection(token, {
+        name: collectionName.trim(),
+        slug: collectionSlug.trim() || undefined,
+        description: collectionDescription.trim() || undefined,
+      })
+      setCollectionName('')
+      setCollectionSlug('')
+      setCollectionDescription('')
+      await loadData(token)
+      setMessage('Collection created.')
+    } catch (createError) {
+      const messageText =
+        createError instanceof Error && createError.message
+          ? createError.message
+          : 'Could not create collection.'
+      setError(messageText)
+    } finally {
+      setIsSubmittingCollection(false)
+    }
+  }
+
+  const handleCategoryToggle = (categoryId: number): void => {
+    setSelectedCategoryIds((previous) =>
+      previous.includes(categoryId)
+        ? previous.filter((value) => value !== categoryId)
+        : [...previous, categoryId],
+    )
+  }
+
+  const handleCreateAsset = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+
+    if (!token) {
+      return
+    }
+
+    if (!selectedFile) {
+      setError('Select a file to upload.')
+      return
+    }
+
+    if (!assetForm.title.trim()) {
+      setError('Asset title is required.')
+      return
+    }
+
+    setIsSubmittingAsset(true)
+    setUploadProgress(assetForm.kind === 'video' ? 0 : null)
+    setError(null)
+    setMessage(assetForm.kind === 'video' ? 'Starting Bunny video upload...' : 'Preparing image upload...')
+
+    try {
+      const selectedCollection = collections.find(
+        (collection) => String(collection.id) === assetForm.collectionId,
+      )
+
+      if (assetForm.kind === 'video') {
+        if (!config?.bunnyConfigured) {
+          throw new Error(
+            'Bunny Stream is not configured. Set BUNNY_STREAM_LIBRARY_ID and BUNNY_STREAM_API_KEY in the backend.',
+          )
+        }
+
+        const started = await createBunnyVideoUploadStart(token, {
+          title: assetForm.title.trim(),
+          filename: selectedFile.name,
+          mimeType: selectedFile.type || undefined,
+          size: selectedFile.size,
+        })
+
+        await uploadFileToBunnyTus(selectedFile, started, (ratio) => {
+          const percent = Math.round(Math.min(1, Math.max(0, ratio)) * 100)
+          setUploadProgress(percent)
+        })
+
+        setMessage('Fetching Bunny playback data...')
+        const bunnyPlayData = await getBunnyVideoPlayData(token, started.videoId)
+
+        setMessage('Saving asset metadata to Strapi...')
+        await createUgcAdminAsset(token, {
+          title: assetForm.title.trim(),
+          description: assetForm.description.trim() || undefined,
+          hook: assetForm.hook.trim() || undefined,
+          goal: assetForm.goal.trim() || undefined,
+          style: assetForm.style.trim() || undefined,
+          kind: 'video',
+          storageProvider: 'bunny',
+          categoryIds: selectedCategoryIds,
+          storage: {
+            provider: 'bunny',
+            libraryId: bunnyPlayData.libraryId || started.libraryId,
+            videoId: bunnyPlayData.videoId || started.videoId,
+            status: bunnyPlayData.status,
+            encodeProgress: bunnyPlayData.encodeProgress,
+            embedUrl: bunnyPlayData.embedUrl || started.embedUrl || undefined,
+            playbackUrl: bunnyPlayData.playbackUrl || undefined,
+            fallbackUrl: bunnyPlayData.fallbackUrl || undefined,
+            thumbnailUrl: bunnyPlayData.thumbnailUrl || undefined,
+            bytes: bunnyPlayData.bytes,
+            duration: bunnyPlayData.duration,
+            width: bunnyPlayData.width,
+            height: bunnyPlayData.height,
+            raw: bunnyPlayData.raw ?? bunnyPlayData,
+          },
+        })
+      } else {
+        setMessage('Uploading image to Cloudinary...')
+        const signature = await createCloudinaryUploadSignature(token, {
+          filename: selectedFile.name,
+          kind: 'photo',
+          collectionName: selectedCollection?.slug || selectedCollection?.name || undefined,
+        })
+
+        const uploaded = await uploadFileToCloudinary(signature, selectedFile)
+
+        setMessage('Saving asset metadata to Strapi...')
+        await createUgcAdminAsset(token, {
+          title: assetForm.title.trim(),
+          description: assetForm.description.trim() || undefined,
+          hook: assetForm.hook.trim() || undefined,
+          goal: assetForm.goal.trim() || undefined,
+          style: assetForm.style.trim() || undefined,
+          kind: 'photo',
+          storageProvider: 'cloudinary',
+          collectionId: assetForm.collectionId ? Number(assetForm.collectionId) : null,
+          categoryIds: selectedCategoryIds,
+          cloudinary: {
+            provider: 'cloudinary',
+            publicId: asString(uploaded.public_id),
+            resourceType: asString(uploaded.resource_type || 'image'),
+            deliveryType: asString(uploaded.type || 'upload'),
+            version: uploaded.version,
+            format: asString(uploaded.format),
+            bytes: uploaded.bytes,
+            width: uploaded.width,
+            height: uploaded.height,
+            duration: uploaded.duration,
+            secureUrl: asString(uploaded.secure_url),
+            raw: uploaded,
+          },
+        })
+      }
+
+      setAssetForm(emptyAssetForm)
+      setSelectedCategoryIds([])
+      setSelectedFile(null)
+      setUploadProgress(assetForm.kind === 'video' ? 100 : null)
+      await loadData(token)
+      setMessage('Asset uploaded and metadata saved.')
+    } catch (submitError) {
+      const messageText =
+        submitError instanceof Error && submitError.message
+          ? submitError.message
+          : 'Could not upload asset.'
+      setError(messageText)
+    } finally {
+      setIsSubmittingAsset(false)
+      setUploadProgress(null)
+    }
+  }
+
+  const handleDeleteAsset = async (asset: UgcAdminAsset): Promise<void> => {
+    if (!token) {
+      return
+    }
+
+    const providerLabel = isBunnyAsset(asset) ? 'Bunny Stream' : 'Cloudinary'
+    if (!window.confirm(`Delete this asset and remove it from ${providerLabel}?`)) {
+      return
+    }
+
+    setError(null)
+    setMessage(null)
+
+    try {
+      await deleteUgcAdminAsset(token, asset.id)
+      await loadData(token)
+      setMessage('Asset deleted.')
+    } catch (deleteError) {
+      const messageText =
+        deleteError instanceof Error && deleteError.message
+          ? deleteError.message
+          : 'Could not delete asset.'
+      setError(messageText)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6 text-center">
+        <p className="font-body text-sm text-muted-foreground">Loading admin dashboard...</p>
+      </div>
+    )
   }
 
   return (
@@ -328,266 +427,420 @@ export const InstagramPanel = () => {
       <Navbar />
       <div className="h-16" aria-hidden />
 
-      <main className="container mx-auto px-6 py-12 lg:px-16 lg:py-14">
-        <div className="mx-auto max-w-5xl space-y-8">
-          <header className="space-y-6 border-b border-border pb-6">
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div className="space-y-3">
-                <p className="font-body text-sm uppercase tracking-[0.3em] text-accent">
+      <main className="container mx-auto px-6 py-12 lg:px-16">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <header className="space-y-4 border-b border-border pb-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="font-body text-sm uppercase tracking-[0.24em] text-accent">
                   Private Workspace
                 </p>
-                <h1 className="font-display text-5xl font-light italic leading-[0.95] text-foreground sm:text-6xl">
-                  Instagram Growth Panel
+                <h1 className="font-display text-4xl italic leading-none text-foreground sm:text-5xl">
+                  UGC Portfolio Admin
                 </h1>
-                <p className="max-w-3xl font-body text-base leading-relaxed text-muted-foreground">
-                  Keep this page private. It tracks your roadmap, key metrics, and brand targeting
-                  in the same design system as your portfolio.
+                <p className="mt-2 font-body text-sm text-muted-foreground">
+                  Cloudinary image uploads + Bunny Stream video uploads with metadata-only persistence in Strapi.
                 </p>
               </div>
-
-              <button
-                onClick={handleLogout}
-                className="inline-block border border-foreground px-8 py-4 font-body text-sm uppercase tracking-wider text-foreground transition-all hover:bg-foreground hover:text-background"
-              >
-                Sign Out
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => void handleRefresh()}
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-xs uppercase tracking-[0.16em] text-foreground transition hover:bg-muted"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-foreground px-4 text-xs uppercase tracking-[0.16em] text-foreground transition hover:bg-foreground hover:text-background"
+                >
+                  Sign Out
+                </button>
+              </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { label: 'Current', value: 'Under 1K' },
-                { label: 'Phase 1 Target', value: '1K followers' },
-                { label: 'First Deal Target', value: 'Month 3-5' },
-                { label: 'Niche', value: 'Luxury + Culture' },
-              ].map((item) => (
-                <div key={item.label} className="border border-border bg-card/60 p-3">
-                  <p className="font-body text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                    {item.label}
-                  </p>
-                  <p className="mt-1 font-body text-sm text-foreground">{item.value}</p>
-                </div>
-              ))}
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-md border border-border bg-card p-3">
+                <p className="font-body text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Logged in
+                </p>
+                <p className="mt-1 text-sm text-foreground">
+                  {user?.username || user?.email || 'Unknown user'}
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-card p-3">
+                <p className="font-body text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Role
+                </p>
+                <p className="mt-1 text-sm text-foreground">
+                  {user?.role?.name || user?.role?.type || 'No role'}
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-card p-3">
+                <p className="font-body text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Upload Limit (Info)
+                </p>
+                <p className="mt-1 text-sm text-foreground">{maxUploadMb} MB</p>
+              </div>
             </div>
+
+            {message ? (
+              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                {message}
+              </p>
+            ) : null}
+            {error ? (
+              <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
           </header>
 
-          <nav className="flex flex-wrap items-center gap-2 border-b border-border pb-4">
-            {panelTabs.map((tab) => {
-              const isActive = activeTab === tab.id
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={
-                    isActive
-                      ? 'border border-foreground bg-foreground px-5 py-3 font-body text-xs uppercase tracking-[0.2em] text-background'
-                      : 'border border-border bg-background px-5 py-3 font-body text-xs uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-foreground hover:text-foreground'
-                  }
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </nav>
-
-          {activeTab === TAB_ROADMAP ? (
-            <section className="space-y-4">
-              <p className="font-body text-sm text-muted-foreground">
-                Open each phase and mark tasks complete to track your progress.
+          <section className="grid gap-4 lg:grid-cols-2">
+            <article className="rounded-lg border border-border bg-card p-5">
+              <h2 className="font-display text-2xl italic text-foreground">Categories</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Create categories to tag assets in the portfolio.
               </p>
+              <form className="mt-4 space-y-3" onSubmit={(event) => void handleCreateCategory(event)}>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Name</label>
+                  <input
+                    value={categoryName}
+                    onChange={(event) => setCategoryName(event.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                    placeholder="Luxury Hotels"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Slug (optional)
+                  </label>
+                  <input
+                    value={categorySlug}
+                    onChange={(event) => setCategorySlug(event.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                    placeholder="luxury-hotels"
+                  />
+                </div>
+                <button
+                  disabled={isSubmittingCategory}
+                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {isSubmittingCategory ? 'Creating...' : 'Create Category'}
+                </button>
+              </form>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <li
+                    key={category.id}
+                    className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground"
+                  >
+                    {category.name}
+                  </li>
+                ))}
+              </ul>
+            </article>
 
-              {panelData.phases.map((phase) => {
-                const theme = getPhaseTheme(phase.id)
-                const isExpanded = expandedPhase === phase.id
-                const progress = getPhaseProgress(phase)
+            <article className="rounded-lg border border-border bg-card p-5">
+              <h2 className="font-display text-2xl italic text-foreground">Collections</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Group assets into branded story collections.
+              </p>
+              <form
+                className="mt-4 space-y-3"
+                onSubmit={(event) => void handleCreateCollection(event)}
+              >
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Name</label>
+                  <input
+                    value={collectionName}
+                    onChange={(event) => setCollectionName(event.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                    placeholder="My Summer Campaign"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Slug (optional)
+                  </label>
+                  <input
+                    value={collectionSlug}
+                    onChange={(event) => setCollectionSlug(event.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                    placeholder="my-summer-campaign"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Description (optional)
+                  </label>
+                  <textarea
+                    value={collectionDescription}
+                    onChange={(event) => setCollectionDescription(event.target.value)}
+                    className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+                    placeholder="Story-driven travel collection with lifestyle hooks."
+                  />
+                </div>
+                <button
+                  disabled={isSubmittingCollection}
+                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {isSubmittingCollection ? 'Creating...' : 'Create Collection'}
+                </button>
+              </form>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {collections.map((collection) => (
+                  <li
+                    key={collection.id}
+                    className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground"
+                  >
+                    {collection.name}
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="font-display text-3xl italic text-foreground">Upload Asset</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Photos upload to Cloudinary. Videos upload to Bunny Stream. Metadata is saved in Strapi.
+            </p>
+            <form className="mt-4 grid gap-4" onSubmit={(event) => void handleCreateAsset(event)}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">File</label>
+                  <input
+                    type="file"
+                    onChange={(event) => {
+                      setSelectedFile(event.target.files?.[0] ?? null)
+                      setUploadProgress(null)
+                    }}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Kind</label>
+                  <select
+                    value={assetForm.kind}
+                    onChange={(event) => {
+                      const nextKind = event.target.value as UploadKind
+                      setAssetForm((previous) => ({
+                        ...previous,
+                        kind: nextKind,
+                        collectionId: nextKind === 'video' ? '' : previous.collectionId,
+                      }))
+                    }}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                  >
+                    <option value="photo">Photo</option>
+                    <option value="video">Video</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Title</label>
+                  <input
+                    value={assetForm.title}
+                    onChange={(event) =>
+                      setAssetForm((previous) => ({ ...previous, title: event.target.value }))
+                    }
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                    placeholder="Beachfront Hotel Reel"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Collection
+                  </label>
+                  <select
+                    value={assetForm.collectionId}
+                    onChange={(event) =>
+                      setAssetForm((previous) => ({
+                        ...previous,
+                        collectionId: event.target.value,
+                      }))
+                    }
+                    disabled={assetForm.kind === 'video'}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                  >
+                    <option value="">
+                      {assetForm.kind === 'video' ? 'Videos cannot be in collections' : 'No collection'}
+                    </option>
+                    {collections.map((collection) => (
+                      <option key={collection.id} value={String(collection.id)}>
+                        {collection.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Hook</label>
+                  <input
+                    value={assetForm.hook}
+                    onChange={(event) =>
+                      setAssetForm((previous) => ({ ...previous, hook: event.target.value }))
+                    }
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Goal</label>
+                  <input
+                    value={assetForm.goal}
+                    onChange={(event) =>
+                      setAssetForm((previous) => ({ ...previous, goal: event.target.value }))
+                    }
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Style</label>
+                  <input
+                    value={assetForm.style}
+                    onChange={(event) =>
+                      setAssetForm((previous) => ({ ...previous, style: event.target.value }))
+                    }
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  Description
+                </label>
+                <textarea
+                  value={assetForm.description}
+                  onChange={(event) =>
+                    setAssetForm((previous) => ({
+                      ...previous,
+                      description: event.target.value,
+                    }))
+                  }
+                  className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Categories</p>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((category) => {
+                    const selected = selectedCategoryIds.includes(category.id)
+
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => handleCategoryToggle(category.id)}
+                        className={
+                          selected
+                            ? 'rounded-full border border-primary bg-primary px-3 py-1 text-xs text-primary-foreground'
+                            : 'rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground'
+                        }
+                      >
+                        {category.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {isSubmittingAsset && uploadProgress !== null ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <span>Upload progress</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="h-2 bg-muted" />
+                </div>
+              ) : null}
+
+              <button
+                disabled={isSubmittingAsset}
+                className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+              >
+                {isSubmittingAsset
+                  ? 'Uploading...'
+                  : assetForm.kind === 'video'
+                    ? 'Upload Video to Bunny + Save Metadata'
+                    : 'Upload Image to Cloudinary + Save Metadata'}
+              </button>
+            </form>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="font-display text-3xl italic text-foreground">Assets</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage uploaded portfolio media items.
+            </p>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {assets.map((asset) => {
+                const bunnyAsset = isBunnyAsset(asset)
+                const bunnyEmbedUrl = asset.bunny?.embedUrl || asset.secureUrl || ''
+                const cloudinaryUrl = asset.cloudinary?.secureUrl || asset.secureUrl || ''
+                const imageUrl = asset.cloudinary?.thumbnailUrl || asset.thumbnailUrl || cloudinaryUrl
 
                 return (
-                  <article
-                    key={phase.id}
-                    className={`border bg-card/50 transition-all duration-300 hover:-translate-y-0.5 ${isExpanded ? theme.border : 'border-border'}`}
-                  >
-                    <button
-                      onClick={() => setExpandedPhase(isExpanded ? null : phase.id)}
-                      className="flex w-full items-center gap-4 px-5 py-4 text-left"
-                    >
-                      <div
-                        className={`flex h-10 w-10 items-center justify-center border font-body text-sm font-semibold ${theme.badgeBg} ${theme.badgeText} ${theme.border}`}
-                      >
-                        {phase.id}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="font-body text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                          {phase.label}
-                        </p>
-                        <h2 className="mt-1 font-display text-2xl italic leading-none sm:text-3xl">
-                          {phase.title}
-                        </h2>
-                        <p className="mt-2 font-body text-sm text-muted-foreground">{phase.timeline}</p>
-                      </div>
-
-                      <div className="hidden w-32 shrink-0 sm:block">
-                        <div className="h-1 w-full bg-muted">
-                          <div
-                            className={`h-full ${theme.progress}`}
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                        <p className="mt-2 text-right font-body text-xs text-muted-foreground">
-                          {progress}%
-                        </p>
-                      </div>
-
-                      <span className="font-body text-lg text-muted-foreground">
-                        {isExpanded ? '-' : '+'}
-                      </span>
-                    </button>
-
-                    {isExpanded ? (
-                      <div className="space-y-4 border-t border-border px-5 py-5">
-                        <div className={`border p-4 ${theme.soft} ${theme.border}`}>
-                          <p className="font-body text-sm text-foreground">{phase.goal}</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          {phase.tasks.map((task, index) => {
-                            const taskKey = getTaskKey(phase.id, index)
-                            const isDone = Boolean(checkedTasks[taskKey])
-
-                            return (
-                              <button
-                                key={taskKey}
-                                onClick={() => toggleTask(phase.id, index)}
-                                className={`w-full border p-4 text-left transition-colors ${
-                                  isDone
-                                    ? `${theme.soft} ${theme.border}`
-                                    : 'border-border bg-background hover:bg-muted/40'
-                                }`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <span
-                                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border text-[11px] ${
-                                      isDone
-                                        ? `${theme.progress} ${theme.border} text-white`
-                                        : 'border-border text-transparent'
-                                    }`}
-                                  >
-                                    V
-                                  </span>
-                                  <span className="space-y-1">
-                                    <span
-                                      className={`block font-body text-sm ${
-                                        isDone ? 'text-muted-foreground line-through' : 'text-foreground'
-                                      }`}
-                                    >
-                                      {task.task}
-                                    </span>
-                                    <span className="block font-body text-sm text-muted-foreground">
-                                      {task.detail}
-                                    </span>
-                                  </span>
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
+                  <article key={asset.id} className="overflow-hidden rounded-lg border border-border bg-background">
+                    {asset.kind === 'video' ? (
+                      bunnyAsset && bunnyEmbedUrl ? (
+                        <iframe
+                          src={bunnyEmbedUrl}
+                          title={asset.title}
+                          loading="lazy"
+                          allow="autoplay; fullscreen; picture-in-picture"
+                          allowFullScreen
+                          className="h-48 w-full border-0 bg-muted"
+                        />
+                      ) : (
+                        <video
+                          controls
+                          preload="metadata"
+                          src={cloudinaryUrl}
+                          className="h-48 w-full object-cover"
+                        />
+                      )
+                    ) : (
+                      <img src={imageUrl} alt={asset.title} className="h-48 w-full object-cover" />
+                    )}
+                  <div className="space-y-2 p-4">
+                    <h3 className="font-body text-sm font-semibold text-foreground">{asset.title}</h3>
+                    {asset.description ? (
+                      <p className="line-clamp-2 text-xs text-muted-foreground">{asset.description}</p>
                     ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      Provider: {bunnyAsset ? 'Bunny Stream' : 'Cloudinary'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Collection: {asset.collection?.name ?? 'None'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Categories:{' '}
+                      {asset.categories.length > 0
+                        ? asset.categories.map((category) => category.name).join(', ')
+                        : 'None'}
+                    </p>
+                    <button
+                      onClick={() => void handleDeleteAsset(asset)}
+                      className="inline-flex h-9 items-center justify-center rounded-md border border-destructive/40 px-3 text-xs font-medium text-destructive transition hover:bg-destructive/10"
+                    >
+                      Delete
+                    </button>
+                  </div>
                   </article>
                 )
               })}
-            </section>
-          ) : null}
-
-          {activeTab === TAB_METRICS ? (
-            <section className="space-y-5">
-              <p className="font-body text-sm text-muted-foreground">
-                Track these weekly inside Instagram Insights. They matter more than follower count
-                alone when pitching brands.
-              </p>
-
-              <div className="grid gap-3">
-                {panelData.metrics.map((metric) => (
-                  <article
-                    key={metric.label}
-                    className="grid gap-4 border border-border bg-card/50 p-4 sm:grid-cols-[1fr_auto] sm:items-center"
-                  >
-                    <div>
-                      <h2 className="font-body text-base text-foreground">{metric.label}</h2>
-                      <p className="mt-1 font-body text-sm text-muted-foreground">{metric.why}</p>
-                    </div>
-                    <p className="border border-border bg-background px-3 py-2 text-center font-body text-xs uppercase tracking-[0.16em] text-foreground">
-                      {metric.target}
-                    </p>
-                  </article>
-                ))}
-              </div>
-
-              <article className="border border-border bg-muted/35 p-4">
-                <h3 className="font-body text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  Where to find insights
-                </h3>
-                <p className="mt-2 font-body text-sm leading-relaxed text-foreground">
-                  Profile to Professional Dashboard to Insights. Check each post using the "View
-                  Insights" action and track your weekly trend.
-                </p>
-              </article>
-            </section>
-          ) : null}
-
-          {activeTab === TAB_BRANDS ? (
-            <section className="space-y-5">
-              <p className="font-body text-sm text-muted-foreground">
-                Target brands by category and pitch content concepts, not generic collaboration
-                requests.
-              </p>
-
-              <div className="grid gap-3">
-                {panelData.brands.map((brand, index) => {
-                  const accentClass =
-                    index % 4 === 0
-                      ? 'border-l-amber-500'
-                      : index % 4 === 1
-                        ? 'border-l-sky-500'
-                        : index % 4 === 2
-                          ? 'border-l-emerald-500'
-                          : 'border-l-rose-500'
-
-                  return (
-                    <article
-                      key={brand.category}
-                      className={`border border-border border-l-4 bg-card/50 p-4 ${accentClass}`}
-                    >
-                      <h2 className="font-body text-base text-foreground">{brand.category}</h2>
-                      <p className="mt-2 font-body text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">Examples:</span> {brand.examples}
-                      </p>
-                      <p className="mt-2 font-body text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">Approach:</span> {brand.approach}
-                      </p>
-                    </article>
-                  )
-                })}
-              </div>
-
-              <article className="border border-border bg-muted/35 p-4">
-                <h3 className="font-body text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  Pitch prompt
-                </h3>
-                <p className="mt-2 font-body text-sm leading-relaxed text-foreground">
-                  "Hi [Brand], I create luxury travel and city culture content. I would like to
-                  produce a [specific deliverable] for [campaign or destination]. Portfolio: [link].
-                  I focus on cinematic, conversion-ready UGC for short-form platforms."
-                </p>
-              </article>
-            </section>
-          ) : null}
+            </div>
+          </section>
         </div>
       </main>
-
-      <footer className="py-6 text-center font-body text-xs tracking-wider text-muted-foreground">
-        (c) 2026 Sarah Ghobj. All rights reserved.
-      </footer>
     </div>
   )
 }

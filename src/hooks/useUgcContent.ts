@@ -28,6 +28,10 @@ type UgcMediaAsset = {
   width?: number | null
   height?: number | null
   mime?: string | null
+  provider?: string | null
+  embedUrl?: string | null
+  playbackUrl?: string | null
+  thumbnailUrl?: string | null
 }
 
 type UgcTagEntry = {
@@ -50,6 +54,15 @@ type UgcWorkBlock = UgcTextBlock & {
   media?: UgcWorkMediaEntry[] | null
 }
 
+type UgcCollectionEntry = {
+  id?: string | number | null
+  name?: string | null
+  description?: string | null
+  story?: string | null
+  insights?: UgcTagEntry[] | null
+  media?: UgcWorkMediaEntry[] | null
+}
+
 type UgcPayload = {
   aboutMe?: UgcTextBlock | null
   hero?: {
@@ -59,6 +72,9 @@ type UgcPayload = {
   } | null
   myServices?: UgcServicesBlock | null
   myWork?: UgcWorkBlock | null
+  collections?: UgcCollectionEntry[] | null
+  highlights?: UgcWorkMediaEntry[] | null
+  videos?: UgcWorkMediaEntry[] | null
 }
 
 type UgcQueryData = {
@@ -72,6 +88,14 @@ const asNumber = (value: unknown): number | undefined =>
 
 const asMediaKind = (value: unknown): 'photo' | 'video' | '' => {
   if (value === 'photo' || value === 'video') {
+    return value
+  }
+
+  return ''
+}
+
+const asProvider = (value: unknown): 'cloudinary' | 'bunny' | '' => {
+  if (value === 'cloudinary' || value === 'bunny') {
     return value
   }
 
@@ -130,6 +154,11 @@ export type UgcWorkMediaContent = {
   goal: string
   style: string
   imageUrl: string
+  sourceUrl: string
+  provider: 'cloudinary' | 'bunny' | ''
+  embedUrl: string
+  playbackUrl: string
+  thumbnailUrl: string
   imageAlt: string
   width?: number
   height?: number
@@ -144,11 +173,27 @@ export type UgcWorkContent = {
   media: UgcWorkMediaContent[]
 }
 
+export type UgcShowcaseCollectionContent = {
+  id: string
+  name: string
+  description: string
+  story: string
+  insights: string[]
+  media: UgcWorkMediaContent[]
+}
+
+export type UgcShowcaseContent = {
+  collections: UgcShowcaseCollectionContent[]
+  highlights: UgcWorkMediaContent[]
+  videos: UgcWorkMediaContent[]
+}
+
 export type UgcContent = {
   aboutMe: UgcSectionContent
   hero: UgcHeroContent
   myServices: UgcServicesContent
   myWork: UgcWorkContent
+  showcase: UgcShowcaseContent
 }
 
 type UseUgcContentResult = {
@@ -179,6 +224,72 @@ const emptyContent: UgcContent = {
     text: '',
     media: [],
   },
+  showcase: {
+    collections: [],
+    highlights: [],
+    videos: [],
+  },
+}
+
+const normalizeWorkMedia = (
+  entries: UgcWorkMediaEntry[] | null | undefined,
+  idPrefix: string,
+): UgcWorkMediaContent[] => {
+  return (
+    entries
+      ?.map((entry, index) => {
+        const title = asString(entry?.title)
+        const description = asString(entry?.description)
+        const sourceUrl = resolveStrapiAssetUrl(asString(entry?.media?.url), env.strapiBaseUrl)
+        const embedUrl = resolveStrapiAssetUrl(asString(entry?.media?.embedUrl), env.strapiBaseUrl)
+        const playbackUrl = resolveStrapiAssetUrl(
+          asString(entry?.media?.playbackUrl),
+          env.strapiBaseUrl,
+        )
+        const thumbnailUrl = resolveStrapiAssetUrl(
+          asString(entry?.media?.thumbnailUrl),
+          env.strapiBaseUrl,
+        )
+        const mime = asString(entry?.media?.mime).toLowerCase()
+        const kind = asMediaKind(entry?.kind)
+        const inferredKind = inferMediaKind(kind, mime)
+        const imageUrl =
+          inferredKind === 'video'
+            ? thumbnailUrl || sourceUrl || playbackUrl || embedUrl
+            : sourceUrl || thumbnailUrl
+
+        return {
+          id: entry?.id != null ? String(entry.id) : `${idPrefix}-${index + 1}`,
+          kind: inferredKind,
+          title,
+          description,
+          hook: asString(entry?.hook),
+          goal: asString(entry?.goal),
+          style: asString(entry?.style),
+          imageUrl,
+          sourceUrl,
+          provider: asProvider(entry?.media?.provider),
+          embedUrl,
+          playbackUrl,
+          thumbnailUrl,
+          imageAlt: asString(entry?.media?.alternativeText) || title || 'Portfolio media',
+          width: asNumber(entry?.media?.width),
+          height: asNumber(entry?.media?.height),
+          mime,
+          categories:
+            entry?.categories
+              ?.map((tag) => asString(tag?.name))
+              .filter((name) => name.length > 0) ?? [],
+        }
+      })
+      .filter(
+        (entry) =>
+          entry.imageUrl.length > 0 ||
+          entry.sourceUrl.length > 0 ||
+          entry.playbackUrl.length > 0 ||
+          entry.embedUrl.length > 0,
+      ) ?? []
+  )
 }
 
 const normalize = (ugc: UgcPayload | null | undefined): UgcContent => {
@@ -211,35 +322,28 @@ const normalize = (ugc: UgcPayload | null | undefined): UgcContent => {
       sectionName: asString(ugc.myWork?.sectionName),
       title: asString(ugc.myWork?.title),
       text: asString(ugc.myWork?.text),
-      media:
-        ugc.myWork?.media
-          ?.map((entry, index) => {
-            const title = asString(entry?.title)
-            const description = asString(entry?.description)
-            const rawUrl = asString(entry?.media?.url)
-            const mime = asString(entry?.media?.mime).toLowerCase()
-            const kind = asMediaKind(entry?.kind)
+      media: normalizeWorkMedia(ugc.myWork?.media, 'work-media'),
+    },
+    showcase: {
+      collections:
+        ugc.collections?.map((collection, index) => {
+          const collectionId =
+            collection?.id != null ? String(collection.id) : `collection-${index + 1}`
 
-            return {
-              id: entry?.id != null ? String(entry.id) : `work-media-${index + 1}`,
-              kind: inferMediaKind(kind, mime),
-              title,
-              description,
-              hook: asString(entry?.hook),
-              goal: asString(entry?.goal),
-              style: asString(entry?.style),
-              imageUrl: resolveStrapiAssetUrl(rawUrl, env.strapiBaseUrl),
-              imageAlt: asString(entry?.media?.alternativeText) || title || 'Portfolio media',
-              width: asNumber(entry?.media?.width),
-              height: asNumber(entry?.media?.height),
-              mime,
-              categories:
-                entry?.categories
-                  ?.map((tag) => asString(tag?.name))
-                  .filter((name) => name.length > 0) ?? [],
-            }
-          })
-          .filter((entry) => entry.imageUrl.length > 0) ?? [],
+          return {
+            id: collectionId,
+            name: asString(collection?.name),
+            description: asString(collection?.description),
+            story: asString(collection?.story),
+            insights:
+              collection?.insights
+                ?.map((insight) => asString(insight?.name))
+                .filter((insight) => insight.length > 0) ?? [],
+            media: normalizeWorkMedia(collection?.media, `${collectionId}-media`),
+          }
+        }) ?? [],
+      highlights: normalizeWorkMedia(ugc.highlights, 'highlight'),
+      videos: normalizeWorkMedia(ugc.videos, 'video'),
     },
   }
 }

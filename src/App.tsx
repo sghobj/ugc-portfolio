@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import InstagramLogin from "./pages/InstagramLogin";
@@ -22,9 +22,11 @@ const App = () => (
                 <Sonner />
                 <BrowserRouter>
                     <Routes>
-                        <Route path="/instagram-login" element={<InstagramLogin />} />
+                        <Route path="/admin/login" element={<InstagramLogin />} />
+                        <Route path="/instagram-login" element={<Navigate to="/admin/login" replace />} />
                         <Route element={<ProtectedRoute />}>
-                            <Route path="/instagram-panel" element={<InstagramPanel />} />
+                            <Route path="/admin" element={<InstagramPanel />} />
+                            <Route path="/instagram-panel" element={<Navigate to="/admin" replace />} />
                         </Route>
                         <Route element={<ApiClientOutlet />}>
                             <Route path="/" element={<Index />} />

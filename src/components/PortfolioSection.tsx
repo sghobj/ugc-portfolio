@@ -19,6 +19,7 @@ import type { UgcWorkContent } from "@/hooks/useUgcContent";
 import { buildCloudinaryImageUrl, isCloudinaryUrl } from "@/lib/cloudinary";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 
 type PortfolioSectionProps = {
     myWork?: UgcWorkContent;
@@ -192,7 +193,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                 : "w-[90vw] max-w-[56rem]";
 
     return (
-        <section id="portfolio" className="relative overflow-hidden py-16 lg:py-20 bg-card">
+        <section id="portfolio" className="relative overflow-hidden py-12 lg:py-14 bg-card">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,hsl(var(--accent)/0.1),transparent_34%),radial-gradient(circle_at_100%_0%,hsl(var(--foreground)/0.04),transparent_30%)]" />
 
             <div className="container relative mx-auto px-6 lg:px-16">
@@ -202,7 +203,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.7 }}
-                        className="mx-auto mb-10 max-w-2xl text-center"
+                        className="mx-auto mb-8 max-w-2xl text-center"
                     >
                         <p className="mb-3 inline-flex items-center gap-2 border border-foreground/20 bg-foreground/[0.03] px-3 py-1.5 font-body text-[0.65rem] uppercase tracking-[0.2em] text-foreground/80">
                             <Sparkles className="h-3.5 w-3.5 text-accent" />
@@ -226,7 +227,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                     </motion.div>
                 )}
 
-                <div className="mb-8 flex flex-wrap justify-center gap-2">
+                <div className="mb-6 flex flex-wrap justify-center gap-2">
                     {categories.map((category) => (
                         <button
                             key={category}
@@ -246,7 +247,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                     <CarouselContent>
                         {slides.map((slide, slideIndex) => (
                             <CarouselItem key={`${active}-slide-${slideIndex}`}>
-                                <div className="mx-auto grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5">
+                                <div className="mx-auto grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-4">
                                     {slide.map((project) => (
                                         <button
                                             type="button"
@@ -264,8 +265,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                                                     alt={project.title}
                                                     loading="lazy"
                                                     decoding="async"
-                                                    draggable={false}
-                                                    onContextMenu={(event) => event.preventDefault()}
+                                                    {...protectedImageProps}
                                                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                                                 />
                                                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,15,15,0.03)_0%,rgba(15,15,15,0.66)_76%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
@@ -285,6 +285,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                                                         </p>
                                                     </div>
                                                 </div>
+                                                <PhotoProtectionOverlay />
                                             </div>
                                         </button>
                                     ))}
@@ -294,7 +295,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                     </CarouselContent>
 
                     {slides.length > 1 && (
-                        <div className="mt-6 flex items-center justify-center gap-4">
+                        <div className="mt-5 flex items-center justify-center gap-4">
                             <CarouselPrevious className="!static !left-auto !top-auto !translate-y-0 rounded-full h-9 w-9" />
                             <p className="font-body text-[0.65rem] tracking-[0.15em] uppercase text-muted-foreground">
                                 {currentSlide} / {slides.length}
@@ -312,27 +313,31 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                         }
                     }}
                 >
-                    <DialogContent className={`p-0 max-h-[90vh] overflow-hidden ${dialogSizeClass}`}>
+                    <DialogContent className={`p-0 max-h-[86vh] overflow-hidden ${dialogSizeClass}`}>
                         {selectedPhoto && (
-                            <div className="grid h-full max-h-[90vh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
-                                <div className="overflow-auto bg-background p-2">
+                            <div className="grid h-full max-h-[86vh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
+                                <div className="overflow-auto bg-background p-1.5">
                                     <div className="flex min-h-full w-full items-center justify-center">
-                                        <img
-                                            src={selectedPhoto.image}
-                                            alt={selectedPhoto.title}
-                                            className="mx-auto block h-auto w-auto max-h-[82vh] max-w-full object-contain"
-                                            onLoad={(event) => {
-                                                const imageElement = event.currentTarget;
-                                                setNaturalDimensions({
-                                                    width: imageElement.naturalWidth,
-                                                    height: imageElement.naturalHeight,
-                                                });
-                                            }}
-                                        />
+                                        <div className="relative inline-block max-w-full">
+                                            <img
+                                                src={selectedPhoto.image}
+                                                alt={selectedPhoto.title}
+                                                {...protectedImageProps}
+                                                className="mx-auto block h-auto w-auto max-h-[78vh] max-w-full object-contain"
+                                                onLoad={(event) => {
+                                                    const imageElement = event.currentTarget;
+                                                    setNaturalDimensions({
+                                                        width: imageElement.naturalWidth,
+                                                        height: imageElement.naturalHeight,
+                                                    });
+                                                }}
+                                            />
+                                            <PhotoProtectionOverlay />
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="overflow-auto border-t border-border bg-background p-5 md:border-l md:border-t-0 md:p-6">
+                                <div className="overflow-auto border-t border-border bg-background p-4 pt-12 md:border-l md:border-t-0 md:p-5 md:pt-12">
                                     <DialogHeader className="text-left">
                                         <DialogTitle className="font-display text-2xl font-light italic leading-tight text-foreground">
                                             {selectedPhoto.title}
@@ -397,7 +402,7 @@ const PortfolioSection = ({ myWork }: PortfolioSectionProps) => {
                                         )}
                                     </DialogHeader>
 
-                                    <div className="mt-6 space-y-3 border-t border-border pt-4">
+                                    <div className="mt-4 space-y-2.5 border-t border-border pt-3">
                                         <p className="font-body text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
                                             Categories
                                         </p>

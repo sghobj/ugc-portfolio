@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  clearInstagramPanelToken,
-  getInstagramPanelToken,
-  loginInstagramPanel,
-  validateInstagramPanelToken,
-} from '@/lib/instagramPanelAuth'
+  clearUgcAdminToken,
+  getUgcAdminToken,
+  loginUgcAdmin,
+  validateUgcAdminToken,
+} from '@/lib/ugcAdminAuth'
 
 type LoginLocationState = {
   from?: string
@@ -14,13 +14,13 @@ type LoginLocationState = {
 
 const getRedirectPath = (state: unknown): string => {
   if (!state || typeof state !== 'object') {
-    return '/instagram-panel'
+    return '/admin'
   }
 
   const typedState = state as LoginLocationState
 
   if (typeof typedState.from !== 'string' || !typedState.from.startsWith('/')) {
-    return '/instagram-panel'
+    return '/admin'
   }
 
   return typedState.from
@@ -42,7 +42,7 @@ const InstagramLogin = () => {
 
   useEffect(() => {
     let isMounted = true
-    const token = getInstagramPanelToken()
+    const token = getUgcAdminToken()
 
     if (!token) {
       setIsCheckingExistingSession(false)
@@ -52,7 +52,7 @@ const InstagramLogin = () => {
     }
 
     const validateExistingSession = async (): Promise<void> => {
-      const isValid = await validateInstagramPanelToken(token)
+      const isValid = await validateUgcAdminToken(token)
 
       if (!isMounted) {
         return
@@ -63,7 +63,7 @@ const InstagramLogin = () => {
         return
       }
 
-      clearInstagramPanelToken()
+      clearUgcAdminToken()
       setIsCheckingExistingSession(false)
     }
 
@@ -85,12 +85,21 @@ const InstagramLogin = () => {
     setError(null)
     setIsSubmitting(true)
 
-    const result = await loginInstagramPanel(identifier.trim(), password)
+    const result = await loginUgcAdmin(identifier.trim(), password)
 
     setIsSubmitting(false)
 
     if (!result.ok) {
       setError(result.message)
+      return
+    }
+
+    const token = getUgcAdminToken()
+    const hasAccess = token ? await validateUgcAdminToken(token) : false
+
+    if (!hasAccess) {
+      clearUgcAdminToken()
+      setError('Login succeeded, but this user does not have access to the admin dashboard.')
       return
     }
 
@@ -108,9 +117,9 @@ const InstagramLogin = () => {
   return (
     <main className="min-h-screen bg-background px-6 py-12">
       <section className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
-        <h1 className="font-display text-2xl text-foreground">Instagram Panel Login</h1>
+        <h1 className="font-display text-2xl text-foreground">UGC Portfolio Admin Login</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in with your Strapi account credentials.
+          Sign in with your Strapi account to manage uploads and metadata.
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
