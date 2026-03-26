@@ -15,6 +15,8 @@ export type UgcAdminCollection = {
   sortOrder?: number
 }
 
+export type AssetPlacement = 'highlight' | 'video' | null
+
 export type UgcAdminAsset = {
   id: number
   storageProvider?: 'cloudinary' | 'bunny' | string
@@ -24,6 +26,8 @@ export type UgcAdminAsset = {
   hook?: string | null
   goal?: string | null
   style?: string | null
+  placement?: AssetPlacement
+  sortOrder?: number
   secureUrl?: string | null
   thumbnailUrl?: string | null
   cloudinary: {
@@ -417,5 +421,36 @@ export const deleteUgcAdminAsset = async (token: string, assetId: number): Promi
       method: 'DELETE',
     },
     'Failed to delete asset',
+  )
+}
+
+export const updateUgcAdminAsset = async (
+  token: string,
+  assetId: number,
+  payload: Record<string, unknown>,
+): Promise<UgcAdminAsset> => {
+  return await request<UgcAdminAsset>(
+    token,
+    `/assets/${assetId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    'Failed to update asset',
+  )
+}
+
+export const reorderUgcAdminAssets = async (
+  token: string,
+  items: Array<{ id: number; sortOrder: number }>,
+): Promise<{ updated: number }> => {
+  return await request<{ updated: number }>(
+    token,
+    '/assets/batch/reorder',
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ items }),
+    },
+    'Failed to reorder assets',
   )
 }

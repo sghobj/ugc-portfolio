@@ -16,8 +16,11 @@ import {
   listUgcAdminAssets,
   listUgcAdminCategories,
   listUgcAdminCollections,
+  reorderUgcAdminAssets,
+  updateUgcAdminAsset,
   uploadFileToBunnyTus,
   uploadFileToCloudinary,
+  type AssetPlacement,
   type UgcAdminAsset,
   type UgcAdminCategory,
   type UgcAdminConfig,
@@ -44,6 +47,7 @@ type AssetFormState = {
   goal: string
   style: string
   collectionId: string
+  placement: string
 }
 
 const emptyAssetForm: AssetFormState = {
@@ -54,6 +58,7 @@ const emptyAssetForm: AssetFormState = {
   goal: '',
   style: '',
   collectionId: '',
+  placement: '',
 }
 
 const asString = (value: unknown): string => (typeof value === 'string' ? value : '')
@@ -105,8 +110,26 @@ export const InstagramPanel = () => {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [assetsTab, setAssetsTab] = useState<'highlights' | 'videos' | 'collections' | 'unassigned'>('highlights')
 
   const maxUploadMb = useMemo(() => config?.maxUploadMb ?? 1000, [config?.maxUploadMb])
+
+  const highlightAssets = useMemo(
+    () => assets.filter((a) => a.placement === 'highlight').sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [assets],
+  )
+  const videoAssets = useMemo(
+    () => assets.filter((a) => a.placement === 'video').sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [assets],
+  )
+  const collectionAssets = useMemo(
+    () => assets.filter((a) => !a.placement && a.collection),
+    [assets],
+  )
+  const unassignedAssets = useMemo(
+    () => assets.filter((a) => !a.placement && !a.collection),
+    [assets],
+  )
 
   useEffect(() => {
     const currentToken = getUgcAdminToken()
@@ -341,6 +364,7 @@ export const InstagramPanel = () => {
           style: assetForm.style.trim() || undefined,
           kind: 'video',
           storageProvider: 'bunny',
+          placement: assetForm.placement || null,
           categoryIds: selectedCategoryIds,
           storage: {
             provider: 'bunny',
@@ -378,6 +402,7 @@ export const InstagramPanel = () => {
           style: assetForm.style.trim() || undefined,
           kind: 'photo',
           storageProvider: 'cloudinary',
+          placement: assetForm.placement || null,
           collectionId: assetForm.collectionId ? Number(assetForm.collectionId) : null,
           categoryIds: selectedCategoryIds,
           cloudinary: {
@@ -439,6 +464,144 @@ export const InstagramPanel = () => {
           : 'Could not delete asset.'
       setError(messageText)
     }
+  }
+
+  const handleUpdatePlacement = async (asset: UgcAdminAsset, placement: AssetPlacement): Promise<void> => {
+    if (!token) return
+    setError(null)
+    setMessage(null)
+    try {
+      await updateUgcAdminAsset(token, asset.id, { placement })
+      await loadData(token)
+      setMessage(`Placement updated for "${asset.title}".`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update placement.')
+    }
+  }
+
+  const handleMoveUp = async (asset: UgcAdminAsset, list: UgcAdminAsset[]): Promise<void> => {
+    if (!token) return
+    const index = list.findIndex((a) => a.id === asset.id)
+    if (index <= 0) return
+    const reordered = [...list]
+    ;[reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]]
+    const items = reordered.map((a, i) => ({ id: a.id, sortOrder: i }))
+    setError(null)
+    setMessage(null)
+    try {
+      await reorderUgcAdminAssets(token, items)
+      await loadData(token)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder assets.')
+    }
+  }
+
+  const handleMoveDown = async (asset: UgcAdminAsset, list: UgcAdminAsset[]): Promise<void> => {
+    if (!token) return
+    const index = list.findIndex((a) => a.id === asset.id)
+    if (index < 0 || index >= list.length - 1) return
+    const reordered = [...list]
+    ;[reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]]
+    const items = reordered.map((a, i) => ({ id: a.id, sortOrder: i }))
+    setError(null)
+    setMessage(null)
+    try {
+      await reorderUgcAdminAssets(token, items)
+      await loadData(token)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder assets.')
+    }
+  }
+
+  const renderAssetCard = (asset: UgcAdminAsset, list: UgcAdminAsset[], showReorder: boolean) => {
+    const bunnyAsset = isBunnyAsset(asset)
+    const bunnyEmbedUrl = asset.bunny?.embedUrl || asset.secureUrl || ''
+    const cloudinaryUrl = asset.cloudinary?.secureUrl || asset.secureUrl || ''
+    const imageUrl = asset.cloudinary?.thumbnailUrl || asset.thumbnailUrl || cloudinaryUrl
+
+    return (
+      <article key={asset.id} className="overflow-hidden rounded-lg border border-border bg-background">
+        {asset.kind === 'video' ? (
+          bunnyAsset && bunnyEmbedUrl ? (
+            <iframe
+              src={bunnyEmbedUrl}
+              title={asset.title}
+              loading="lazy"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+              className="h-48 w-full border-0 bg-muted"
+            />
+          ) : (
+            <video controls preload="metadata" src={cloudinaryUrl} className="h-48 w-full object-cover" />
+          )
+        ) : (
+          <img src={imageUrl} alt={asset.title} className="h-48 w-full object-cover" />
+        )}
+        <div className="space-y-2 p-4">
+          <h3 className="font-body text-sm font-semibold text-foreground">{asset.title}</h3>
+          {asset.description ? (
+            <p className="line-clamp-2 text-xs text-muted-foreground">{asset.description}</p>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            Provider: {bunnyAsset ? 'Bunny Stream' : 'Cloudinary'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Collection: {asset.collection?.name ?? 'None'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Categories:{' '}
+            {asset.categories.length > 0
+              ? asset.categories.map((c) => c.name).join(', ')
+              : 'None'}
+          </p>
+          <div className="space-y-2 pt-1">
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Placement</label>
+              <select
+                value={asset.placement ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  void handleUpdatePlacement(asset, val === 'highlight' || val === 'video' ? val : null)
+                }}
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none transition focus:border-primary"
+              >
+                <option value="">Unassigned</option>
+                <option value="highlight">Highlight</option>
+                <option value="video">Cinematic Video</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              {showReorder ? (
+                <>
+                  <button
+                    onClick={() => void handleMoveUp(asset, list)}
+                    disabled={list.indexOf(asset) === 0}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-xs text-foreground transition hover:bg-muted disabled:opacity-30"
+                    title="Move up"
+                  >
+                    &uarr;
+                  </button>
+                  <button
+                    onClick={() => void handleMoveDown(asset, list)}
+                    disabled={list.indexOf(asset) === list.length - 1}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-xs text-foreground transition hover:bg-muted disabled:opacity-30"
+                    title="Move down"
+                  >
+                    &darr;
+                  </button>
+                </>
+              ) : null}
+              <button
+                onClick={() => void handleDeleteAsset(asset)}
+                className="inline-flex h-7 items-center justify-center rounded-md border border-destructive/40 px-3 text-xs font-medium text-destructive transition hover:bg-destructive/10"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    )
   }
 
   if (isLoading) {
@@ -708,6 +871,21 @@ export const InstagramPanel = () => {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Placement</label>
+                <select
+                  value={assetForm.placement}
+                  onChange={(event) =>
+                    setAssetForm((previous) => ({ ...previous, placement: event.target.value }))
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                >
+                  <option value="">Unassigned</option>
+                  <option value="highlight">Highlight</option>
+                  <option value="video">Cinematic Video</option>
+                </select>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Hook</label>
@@ -810,64 +988,50 @@ export const InstagramPanel = () => {
               Manage uploaded portfolio media items.
             </p>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {assets.map((asset) => {
-                const bunnyAsset = isBunnyAsset(asset)
-                const bunnyEmbedUrl = asset.bunny?.embedUrl || asset.secureUrl || ''
-                const cloudinaryUrl = asset.cloudinary?.secureUrl || asset.secureUrl || ''
-                const imageUrl = asset.cloudinary?.thumbnailUrl || asset.thumbnailUrl || cloudinaryUrl
-
-                return (
-                  <article key={asset.id} className="overflow-hidden rounded-lg border border-border bg-background">
-                    {asset.kind === 'video' ? (
-                      bunnyAsset && bunnyEmbedUrl ? (
-                        <iframe
-                          src={bunnyEmbedUrl}
-                          title={asset.title}
-                          loading="lazy"
-                          allow="autoplay; fullscreen; picture-in-picture"
-                          allowFullScreen
-                          className="h-48 w-full border-0 bg-muted"
-                        />
-                      ) : (
-                        <video
-                          controls
-                          preload="metadata"
-                          src={cloudinaryUrl}
-                          className="h-48 w-full object-cover"
-                        />
-                      )
-                    ) : (
-                      <img src={imageUrl} alt={asset.title} className="h-48 w-full object-cover" />
-                    )}
-                  <div className="space-y-2 p-4">
-                    <h3 className="font-body text-sm font-semibold text-foreground">{asset.title}</h3>
-                    {asset.description ? (
-                      <p className="line-clamp-2 text-xs text-muted-foreground">{asset.description}</p>
-                    ) : null}
-                    <p className="text-xs text-muted-foreground">
-                      Provider: {bunnyAsset ? 'Bunny Stream' : 'Cloudinary'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Collection: {asset.collection?.name ?? 'None'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Categories:{' '}
-                      {asset.categories.length > 0
-                        ? asset.categories.map((category) => category.name).join(', ')
-                        : 'None'}
-                    </p>
-                    <button
-                      onClick={() => void handleDeleteAsset(asset)}
-                      className="inline-flex h-9 items-center justify-center rounded-md border border-destructive/40 px-3 text-xs font-medium text-destructive transition hover:bg-destructive/10"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  </article>
-                )
-              })}
+            <div className="mt-4 flex flex-wrap gap-2 border-b border-border pb-3">
+              {([
+                ['highlights', 'Highlights', highlightAssets.length],
+                ['videos', 'Cinematic Videos', videoAssets.length],
+                ['collections', 'Collections', collectionAssets.length],
+                ['unassigned', 'Unassigned', unassignedAssets.length],
+              ] as const).map(([key, label, count]) => (
+                <button
+                  key={key}
+                  onClick={() => setAssetsTab(key)}
+                  className={
+                    assetsTab === key
+                      ? 'rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground'
+                      : 'rounded-md border border-border px-3 py-1.5 text-xs text-foreground transition hover:bg-muted'
+                  }
+                >
+                  {label} ({count})
+                </button>
+              ))}
             </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {assetsTab === 'highlights' &&
+                highlightAssets.map((asset) => renderAssetCard(asset, highlightAssets, true))}
+              {assetsTab === 'videos' &&
+                videoAssets.map((asset) => renderAssetCard(asset, videoAssets, true))}
+              {assetsTab === 'collections' &&
+                collectionAssets.map((asset) => renderAssetCard(asset, collectionAssets, false))}
+              {assetsTab === 'unassigned' &&
+                unassignedAssets.map((asset) => renderAssetCard(asset, unassignedAssets, false))}
+            </div>
+
+            {assetsTab === 'highlights' && highlightAssets.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">No assets assigned as highlights yet.</p>
+            )}
+            {assetsTab === 'videos' && videoAssets.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">No assets assigned as cinematic videos yet.</p>
+            )}
+            {assetsTab === 'collections' && collectionAssets.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">No assets in collections yet.</p>
+            )}
+            {assetsTab === 'unassigned' && unassignedAssets.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">All assets have been assigned.</p>
+            )}
           </section>
         </div>
       </main>
