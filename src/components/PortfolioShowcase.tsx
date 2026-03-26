@@ -731,7 +731,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                             />
                                                         )}
                                                         {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
-                                                        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.06)_0%,rgba(8,8,8,0.52)_100%)]" />
+                                                        <div className="pointer-events-none absolute inset-0 bg-black/24" />
                                                         <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-background/92 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground">
                                                             {entryIsVideo ? <Clapperboard className="h-3 w-3 text-accent" /> : <Layers className="h-3 w-3 text-accent" />}
                                                             {entryIsVideo ? "Video" : "Frame"}
@@ -813,7 +813,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                 viewport={{ once: true, margin: "-60px" }}
                                 transition={{ duration: 0.6, delay: index * 0.04 }}
                                 onClick={() => setSelectedMedia(item)}
-                                className="group overflow-hidden border border-border bg-card text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent"
+                                className="group flex flex-col overflow-hidden border border-border bg-card text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent"
                                 aria-label={`Open highlight details for ${item.title}`}
                             >
                                 <div className="relative aspect-[4/5] overflow-hidden bg-muted">
@@ -847,7 +847,10 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         />
                                     )}
                                     {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
-                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,12,12,0.04)_10%,rgba(12,12,12,0.72)_100%)]" />
+                                    <div className="pointer-events-none absolute inset-0 bg-black/24" />
+                                    {item.hook && (
+                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[50%] bg-[linear-gradient(0deg,rgba(8,8,8,0.74)_0%,rgba(8,8,8,0.34)_48%,rgba(8,8,8,0)_100%)]" />
+                                    )}
                                     {item.track && (
                                         <span className="absolute left-3 top-3 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
                                             {item.track}
@@ -867,7 +870,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     </div>
                                 </div>
 
-                                <div className="p-4">
+                                <div className="flex flex-1 flex-col p-4">
                                     {item.title && (
                                         <h4 className="font-display text-2xl font-light leading-tight text-foreground">
                                             {item.title}
@@ -879,7 +882,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         </p>
                                     )}
                                     {goalAndStyle && (
-                                        <p className={`font-body text-[0.62rem] uppercase tracking-[0.15em] text-foreground/75 ${item.title || item.description ? "mt-3" : ""}`}>
+                                        <p className={`mt-auto font-body text-[0.62rem] uppercase tracking-[0.15em] text-foreground/75 ${item.title || item.description ? "pt-3" : ""}`}>
                                             {goalAndStyle}
                                         </p>
                                     )}
@@ -922,10 +925,10 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                             viewport={{ once: true, margin: "-60px" }}
                                             transition={{ duration: 0.6, delay: index * 0.06 }}
                                             onClick={() => setSelectedMedia(video)}
-                                            className="group overflow-hidden border border-primary-foreground/20 bg-primary-foreground/[0.06] text-left transition-all duration-300 hover:border-accent"
+                                            className="group flex flex-col overflow-hidden border border-primary-foreground/20 bg-primary-foreground/[0.06] text-left transition-all duration-300 hover:border-accent"
                                             aria-label={`Open video story details for ${video.title}`}
                                         >
-                                            <div className={`relative overflow-hidden bg-black/30 ${isPortrait ? "aspect-[9/16]" : "aspect-[16/10]"}`}>
+                                            <div className={`relative overflow-hidden bg-transparent ${isPortrait ? "aspect-[9/16]" : "aspect-[16/10]"}`}>
                                                 {canUseInlineVideoPreview(video) ? (
                                                     <video
                                                         src={getVideoPlaybackUrl(video)}
@@ -964,7 +967,6 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                     />
                                                 )}
                                                 {!canUseInlineVideoPreview(video) && <PhotoProtectionOverlay />}
-                                                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.12)_0%,rgba(8,8,8,0.75)_100%)]" />
                                                 <span className="absolute left-3 top-3 inline-flex items-center gap-1 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.14em] text-foreground">
                                                     <Clapperboard className="h-3 w-3 text-accent" />
                                                     {video.provider === "bunny" ? "Bunny Stream" : "Video Story"}
@@ -974,7 +976,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                 </span>
                                             </div>
 
-                                            <div className="p-3.5">
+                                            <div className="flex flex-1 flex-col p-3.5">
                                                 {video.hook && (
                                                     <>
                                                         <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/72">
@@ -991,7 +993,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                     </p>
                                                 )}
                                                 {goalAndStyle && (
-                                                    <p className={`font-body text-[0.58rem] uppercase tracking-[0.14em] text-primary-foreground/70 ${video.hook || video.description ? "mt-2.5" : ""}`}>
+                                                    <p className={`mt-auto font-body text-[0.58rem] uppercase tracking-[0.14em] text-primary-foreground/70 ${video.hook || video.description ? "pt-2.5" : ""}`}>
                                                         {goalAndStyle}
                                                     </p>
                                                 )}

@@ -210,8 +210,9 @@ const CinematicVideoSection = ({ myWork }: CinematicVideoSectionProps) => {
                                         />
                                     )}
                                     {!isVideoAsset(video.mediaUrl, video.mime) && <PhotoProtectionOverlay />}
-                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.2)_0%,rgba(8,8,8,0.78)_72%)]" />
-
+                                    {(video.hook || video.description || video.style) && (
+                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[58%] bg-[linear-gradient(0deg,rgba(8,8,8,0.76)_0%,rgba(8,8,8,0.42)_44%,rgba(8,8,8,0)_100%)]" />
+                                    )}
                                     <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
                                         <span className="inline-flex items-center gap-1 bg-background/90 px-2 py-1 font-body text-[0.58rem] uppercase tracking-[0.16em] text-foreground">
                                             <Clapperboard className="h-3 w-3 text-accent" />
