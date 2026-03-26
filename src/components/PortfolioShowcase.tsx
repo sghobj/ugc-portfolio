@@ -1,9 +1,52 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Clapperboard, Eye, EyeOff, Layers, Play, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Clapperboard, Eye, EyeOff, Layers, Loader2, Play, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+    Carousel,
+    CarouselContent,
+    CarouselItem,
+    useCarousel,
+} from "@/components/ui/carousel";
+import { cn } from "@/lib/utils";
+
+/** Inline carousel arrows that hide themselves when all slides fit in view. */
+function CarouselNav({ className, variant = "light" }: { className?: string; variant?: "light" | "dark" }) {
+    const { scrollPrev, scrollNext, canScrollPrev, canScrollNext } = useCarousel();
+    if (!canScrollPrev && !canScrollNext) return null;
+
+    const isLight = variant === "light";
+    const btnBase =
+        "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors disabled:opacity-40";
+    const btnTheme = isLight
+        ? "border-accent bg-background/90 text-foreground hover:bg-accent hover:text-accent-foreground"
+        : "border-accent bg-primary-foreground/10 text-primary-foreground hover:bg-accent hover:text-accent-foreground";
+
+    return (
+        <div className={cn("flex items-center gap-2", className)}>
+            <button
+                type="button"
+                className={cn(btnBase, btnTheme)}
+                disabled={!canScrollPrev}
+                onClick={scrollPrev}
+                aria-label="Previous slide"
+            >
+                <ArrowLeft className="h-4 w-4" />
+            </button>
+            <button
+                type="button"
+                className={cn(btnBase, btnTheme)}
+                disabled={!canScrollNext}
+                onClick={scrollNext}
+                aria-label="Next slide"
+            >
+                <ArrowRight className="h-4 w-4" />
+            </button>
+        </div>
+    );
+}
 import type {
     UgcShowcaseCollectionContent,
     UgcShowcaseContent,
@@ -436,6 +479,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const [selectedMedia, setSelectedMedia] = useState<StoryMedia | null>(null);
     const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number } | null>(null);
     const [showMobileMediaDetails, setShowMobileMediaDetails] = useState(false);
+    const [mediaLoaded, setMediaLoaded] = useState(false);
 
     const sectionName = myWork?.sectionName?.trim() ?? "";
     const sectionTitle = myWork?.title?.trim() ?? "";
@@ -531,6 +575,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     useEffect(() => {
         setNaturalDimensions(null);
         setShowMobileMediaDetails(false);
+        setMediaLoaded(false);
     }, [selectedMedia?.id]);
 
     useEffect(() => {
@@ -596,7 +641,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,hsl(var(--accent)/0.18),transparent_35%),radial-gradient(circle_at_92%_0%,hsl(var(--foreground)/0.06),transparent_28%)]" />
             <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,hsl(var(--foreground)/0.16)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--foreground)/0.16)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-            <div className="container relative mx-auto px-6 lg:px-16">
+            <div className="container relative mx-auto px-6 lg:px-10">
                 {(sectionName || sectionTitle || sectionText) && (
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
@@ -731,7 +776,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                             />
                                                         )}
                                                         {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
-                                                        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.06)_0%,rgba(8,8,8,0.52)_100%)]" />
+                                                        <div className="pointer-events-none absolute inset-0 bg-black/24" />
                                                         <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-background/92 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground">
                                                             {entryIsVideo ? <Clapperboard className="h-3 w-3 text-accent" /> : <Layers className="h-3 w-3 text-accent" />}
                                                             {entryIsVideo ? "Video" : "Frame"}
@@ -784,7 +829,10 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                 )}
 
                 {activeLane === "highlights" && hasHighlights && (
-                    <div>
+                    <Carousel
+                        opts={{ align: "start" }}
+                        className="w-full"
+                    >
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
                         <div>
                             <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-muted-foreground">
@@ -794,106 +842,117 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                 Signature Story Frames
                             </h3>
                         </div>
+                        <CarouselNav variant="light" />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {highlights.map((item, index) => {
-                            const highlightPreviewUrl =
-                                getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
-                            const goalAndStyle = [item.goal, item.style]
-                                .filter((value) => value.length > 0)
-                                .join(" / ");
+                        <CarouselContent className="-ml-4">
+                            {highlights.map((item, index) => {
+                                const highlightPreviewUrl =
+                                    getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
+                                const goalAndStyle = [item.goal, item.style]
+                                    .filter((value) => value.length > 0)
+                                    .join(" / ");
+                                return (
+                                    <CarouselItem
+                                        key={item.id}
+                                        className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
+                                    >
+                                        <motion.button
+                                            type="button"
+                                            initial={{ opacity: 0, y: 24 }}
+                                            whileInView={{ opacity: 1, y: 0 }}
+                                            viewport={{ once: true, margin: "-60px" }}
+                                            transition={{ duration: 0.6, delay: index * 0.04 }}
+                                            onClick={() => setSelectedMedia(item)}
+                                            className="group flex h-full w-full flex-col overflow-hidden border border-border bg-card text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent"
+                                            aria-label={`Open highlight details for ${item.title}`}
+                                        >
+                                            <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                                                {canUseInlineVideoPreview(item) ? (
+                                                    <video
+                                                        src={getVideoPlaybackUrl(item)}
+                                                        muted
+                                                        loop
+                                                        autoPlay
+                                                        playsInline
+                                                        preload="metadata"
+                                                        className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={getOptimizedImageUrl(
+                                                            highlightPreviewUrl,
+                                                            IMAGE_WIDTHS[1],
+                                                        )}
+                                                        srcSet={getImageSrcSet(
+                                                            highlightPreviewUrl,
+                                                        )}
+                                                        sizes={getImageSizes(
+                                                            highlightPreviewUrl,
+                                                        )}
+                                                        alt={item.title}
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        {...protectedImageProps}
+                                                        className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                    />
+                                                )}
+                                                {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
+                                                <div className="pointer-events-none absolute inset-0 bg-black/24" />
+                                                {item.hook && (
+                                                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[50%] bg-[linear-gradient(0deg,rgba(8,8,8,0.74)_0%,rgba(8,8,8,0.34)_48%,rgba(8,8,8,0)_100%)]" />
+                                                )}
+                                                {item.track && (
+                                                    <span className="absolute left-3 top-3 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
+                                                        {item.track}
+                                                    </span>
+                                                )}
+                                                <div className="absolute bottom-0 left-0 right-0 p-3">
+                                                    {item.hook && (
+                                                        <>
+                                                            <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/80">
+                                                                Hook
+                                                            </p>
+                                                            <p className="mt-1 font-display text-xl font-light italic leading-tight text-primary-foreground">
+                                                                {item.hook}
+                                                            </p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
 
-                            return (
-                                <motion.button
-                                key={item.id}
-                                type="button"
-                                initial={{ opacity: 0, y: 24 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true, margin: "-60px" }}
-                                transition={{ duration: 0.6, delay: index * 0.04 }}
-                                onClick={() => setSelectedMedia(item)}
-                                className="group overflow-hidden border border-border bg-card text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent"
-                                aria-label={`Open highlight details for ${item.title}`}
-                            >
-                                <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-                                    {canUseInlineVideoPreview(item) ? (
-                                        <video
-                                            src={getVideoPlaybackUrl(item)}
-                                            muted
-                                            loop
-                                            autoPlay
-                                            playsInline
-                                            preload="metadata"
-                                            className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                                        />
-                                    ) : (
-                                        <img
-                                            src={getOptimizedImageUrl(
-                                                highlightPreviewUrl,
-                                                IMAGE_WIDTHS[1],
-                                            )}
-                                            srcSet={getImageSrcSet(
-                                                highlightPreviewUrl,
-                                            )}
-                                            sizes={getImageSizes(
-                                                highlightPreviewUrl,
-                                            )}
-                                            alt={item.title}
-                                            loading="lazy"
-                                            decoding="async"
-                                            {...protectedImageProps}
-                                            className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                                        />
-                                    )}
-                                    {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
-                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,12,12,0.04)_10%,rgba(12,12,12,0.72)_100%)]" />
-                                    {item.track && (
-                                        <span className="absolute left-3 top-3 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
-                                            {item.track}
-                                        </span>
-                                    )}
-                                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                                        {item.hook && (
-                                            <>
-                                                <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/80">
-                                                    Hook
-                                                </p>
-                                                <p className="mt-1 font-display text-xl font-light italic leading-tight text-primary-foreground">
-                                                    {item.hook}
-                                                </p>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="p-4">
-                                    {item.title && (
-                                        <h4 className="font-display text-2xl font-light leading-tight text-foreground">
-                                            {item.title}
-                                        </h4>
-                                    )}
-                                    {item.description && (
-                                        <p className={`font-body text-sm leading-relaxed text-muted-foreground ${item.title ? "mt-2" : ""}`}>
-                                            {truncateText(stripMarkdownInline(item.description), 170)}
-                                        </p>
-                                    )}
-                                    {goalAndStyle && (
-                                        <p className={`font-body text-[0.62rem] uppercase tracking-[0.15em] text-foreground/75 ${item.title || item.description ? "mt-3" : ""}`}>
-                                            {goalAndStyle}
-                                        </p>
-                                    )}
-                                </div>
-                            </motion.button>
-                            );
-                        })}
-                    </div>
-                </div>
+                                            <div className="flex flex-1 flex-col p-4">
+                                                {item.title && (
+                                                    <h4 className="font-display text-2xl font-light leading-tight text-foreground">
+                                                        {item.title}
+                                                    </h4>
+                                                )}
+                                                {item.description && (
+                                                    <p className={`font-body text-sm leading-relaxed text-muted-foreground ${item.title ? "mt-2" : ""}`}>
+                                                        {truncateText(stripMarkdownInline(item.description), 170)}
+                                                    </p>
+                                                )}
+                                                {goalAndStyle && (
+                                                    <p className={`mt-auto font-body text-[0.62rem] uppercase tracking-[0.15em] text-foreground/75 ${item.title || item.description ? "pt-3" : ""}`}>
+                                                        {goalAndStyle}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </motion.button>
+                                    </CarouselItem>
+                                );
+                            })}
+                        </CarouselContent>
+                    </Carousel>
                 )}
 
                 {videos.length > 0 && (
                     <div className="mt-14 overflow-hidden border border-foreground/20 bg-foreground text-primary-foreground">
                         <div className="p-4 sm:p-5 lg:p-6">
+                            <Carousel
+                                opts={{ align: "start" }}
+                                className="w-full"
+                            >
                             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
                                 <div>
                                     <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-primary-foreground/70">
@@ -903,103 +962,107 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         Cinematic Story Cuts
                                     </h3>
                                 </div>
+                                <CarouselNav variant="dark" />
                             </div>
+                                <CarouselContent className="-ml-4">
+                                    {videos.map((video, index) => {
+                                        const isPortrait = getOrientation(video.width, video.height) === "portrait";
+                                        const previewHeight = isPortrait ? 980 : 560;
+                                        const goalAndStyle = [video.goal, video.style]
+                                            .filter((value) => value.length > 0)
+                                            .join(" / ");
 
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                {videos.map((video, index) => {
-                                    const isPortrait = getOrientation(video.width, video.height) === "portrait";
-                                    const previewHeight = isPortrait ? 980 : 560;
-                                    const goalAndStyle = [video.goal, video.style]
-                                        .filter((value) => value.length > 0)
-                                        .join(" / ");
+                                        return (
+                                            <CarouselItem
+                                                key={video.id}
+                                                className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
+                                            >
+                                                <motion.button
+                                                    type="button"
+                                                    initial={{ opacity: 0, y: 24 }}
+                                                    whileInView={{ opacity: 1, y: 0 }}
+                                                    viewport={{ once: true, margin: "-60px" }}
+                                                    transition={{ duration: 0.6, delay: index * 0.06 }}
+                                                    onClick={() => setSelectedMedia(video)}
+                                                    className="group flex h-full w-full flex-col overflow-hidden border border-primary-foreground/20 bg-primary-foreground/[0.06] text-left transition-all duration-300 hover:border-accent"
+                                                    aria-label={`Open video story details for ${video.title}`}
+                                                >
+                                                    <div className="relative aspect-[4/3] overflow-hidden bg-transparent">
+                                                        {canUseInlineVideoPreview(video) ? (
+                                                            <video
+                                                                src={getVideoPlaybackUrl(video)}
+                                                                muted
+                                                                loop
+                                                                autoPlay
+                                                                playsInline
+                                                                preload="metadata"
+                                                                className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                            />
+                                                        ) : (
+                                                            <img
+                                                                src={getOptimizedImageUrl(
+                                                                    getPreviewUrl(video) ||
+                                                                        video.thumbnailUrl ||
+                                                                        video.mediaUrl,
+                                                                    IMAGE_WIDTHS[1],
+                                                                    previewHeight,
+                                                                )}
+                                                                srcSet={getImageSrcSet(
+                                                                    getPreviewUrl(video) ||
+                                                                        video.thumbnailUrl ||
+                                                                        video.mediaUrl,
+                                                                    previewHeight,
+                                                                )}
+                                                                sizes={getImageSizes(
+                                                                    getPreviewUrl(video) ||
+                                                                        video.thumbnailUrl ||
+                                                                        video.mediaUrl,
+                                                                )}
+                                                                alt={video.title}
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                                {...protectedImageProps}
+                                                                className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                            />
+                                                        )}
+                                                        {!canUseInlineVideoPreview(video) && <PhotoProtectionOverlay />}
+                                                        <span className="absolute left-3 top-3 inline-flex items-center gap-1 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.14em] text-foreground">
+                                                            <Clapperboard className="h-3 w-3 text-accent" />
+                                                            {video.provider === "bunny" ? "Bunny Stream" : "Video Story"}
+                                                        </span>
+                                                        <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/50 bg-primary-foreground/10 text-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:bg-accent group-hover:text-accent-foreground">
+                                                            <Play className="h-3.5 w-3.5" />
+                                                        </span>
+                                                    </div>
 
-                                    return (
-                                        <motion.button
-                                            key={video.id}
-                                            type="button"
-                                            initial={{ opacity: 0, y: 24 }}
-                                            whileInView={{ opacity: 1, y: 0 }}
-                                            viewport={{ once: true, margin: "-60px" }}
-                                            transition={{ duration: 0.6, delay: index * 0.06 }}
-                                            onClick={() => setSelectedMedia(video)}
-                                            className="group overflow-hidden border border-primary-foreground/20 bg-primary-foreground/[0.06] text-left transition-all duration-300 hover:border-accent"
-                                            aria-label={`Open video story details for ${video.title}`}
-                                        >
-                                            <div className={`relative overflow-hidden bg-black/30 ${isPortrait ? "aspect-[9/16]" : "aspect-[16/10]"}`}>
-                                                {canUseInlineVideoPreview(video) ? (
-                                                    <video
-                                                        src={getVideoPlaybackUrl(video)}
-                                                        muted
-                                                        loop
-                                                        autoPlay
-                                                        playsInline
-                                                        preload="metadata"
-                                                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                                    />
-                                                ) : (
-                                                    <img
-                                                        src={getOptimizedImageUrl(
-                                                            getPreviewUrl(video) ||
-                                                                video.thumbnailUrl ||
-                                                                video.mediaUrl,
-                                                            IMAGE_WIDTHS[1],
-                                                            previewHeight,
+                                                    <div className="flex flex-1 flex-col p-3.5">
+                                                        {video.hook && (
+                                                            <>
+                                                                <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/72">
+                                                                    Campaign Hook
+                                                                </p>
+                                                                <h4 className="mt-1 font-display text-2xl font-light leading-tight text-primary-foreground">
+                                                                    {video.hook}
+                                                                </h4>
+                                                            </>
                                                         )}
-                                                        srcSet={getImageSrcSet(
-                                                            getPreviewUrl(video) ||
-                                                                video.thumbnailUrl ||
-                                                                video.mediaUrl,
-                                                            previewHeight,
+                                                        {video.description && (
+                                                            <p className={`font-body text-xs leading-relaxed text-primary-foreground/78 ${video.hook ? "mt-2" : ""}`}>
+                                                                {truncateText(stripMarkdownInline(video.description), 130)}
+                                                            </p>
                                                         )}
-                                                        sizes={getImageSizes(
-                                                            getPreviewUrl(video) ||
-                                                                video.thumbnailUrl ||
-                                                                video.mediaUrl,
+                                                        {goalAndStyle && (
+                                                            <p className={`mt-auto font-body text-[0.58rem] uppercase tracking-[0.14em] text-primary-foreground/70 ${video.hook || video.description ? "pt-2.5" : ""}`}>
+                                                                {goalAndStyle}
+                                                            </p>
                                                         )}
-                                                        alt={video.title}
-                                                        loading="lazy"
-                                                        decoding="async"
-                                                        {...protectedImageProps}
-                                                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                                    />
-                                                )}
-                                                {!canUseInlineVideoPreview(video) && <PhotoProtectionOverlay />}
-                                                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,8,0.12)_0%,rgba(8,8,8,0.75)_100%)]" />
-                                                <span className="absolute left-3 top-3 inline-flex items-center gap-1 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.14em] text-foreground">
-                                                    <Clapperboard className="h-3 w-3 text-accent" />
-                                                    {video.provider === "bunny" ? "Bunny Stream" : "Video Story"}
-                                                </span>
-                                                <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/50 bg-primary-foreground/10 text-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:bg-accent group-hover:text-accent-foreground">
-                                                    <Play className="h-3.5 w-3.5" />
-                                                </span>
-                                            </div>
-
-                                            <div className="p-3.5">
-                                                {video.hook && (
-                                                    <>
-                                                        <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/72">
-                                                            Campaign Hook
-                                                        </p>
-                                                        <h4 className="mt-1 font-display text-2xl font-light leading-tight text-primary-foreground">
-                                                            {video.hook}
-                                                        </h4>
-                                                    </>
-                                                )}
-                                                {video.description && (
-                                                    <p className={`font-body text-xs leading-relaxed text-primary-foreground/78 ${video.hook ? "mt-2" : ""}`}>
-                                                        {truncateText(stripMarkdownInline(video.description), 130)}
-                                                    </p>
-                                                )}
-                                                {goalAndStyle && (
-                                                    <p className={`font-body text-[0.58rem] uppercase tracking-[0.14em] text-primary-foreground/70 ${video.hook || video.description ? "mt-2.5" : ""}`}>
-                                                        {goalAndStyle}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </motion.button>
-                                    );
-                                })}
-                            </div>
+                                                    </div>
+                                                </motion.button>
+                                            </CarouselItem>
+                                        );
+                                    })}
+                                </CarouselContent>
+                            </Carousel>
                         </div>
                     </div>
                 )}
@@ -1170,25 +1233,38 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     }`}
                                 >
                                     {isVideoAsset(getVideoPlaybackUrl(selectedMedia), selectedMedia.mime) ? (
-                                        <video
-                                            src={getVideoPlaybackUrl(selectedMedia)}
-                                            controls
-                                            autoPlay
-                                            playsInline
-                                            className="mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh]"
-                                            onLoadedMetadata={(event) => {
-                                                const media = event.currentTarget;
-                                                setNaturalDimensions({
-                                                    width: media.videoWidth,
-                                                    height: media.videoHeight,
-                                                });
-                                            }}
-                                        />
+                                        <div className="relative">
+                                            {!mediaLoaded && (
+                                                <div className="flex min-h-[200px] items-center justify-center md:min-h-[300px]">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/50" />
+                                                </div>
+                                            )}
+                                            <video
+                                                src={getVideoPlaybackUrl(selectedMedia)}
+                                                controls
+                                                autoPlay
+                                                playsInline
+                                                className={`mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh] ${mediaLoaded ? "" : "invisible absolute"}`}
+                                                onLoadedMetadata={(event) => {
+                                                    const media = event.currentTarget;
+                                                    setNaturalDimensions({
+                                                        width: media.videoWidth,
+                                                        height: media.videoHeight,
+                                                    });
+                                                    setMediaLoaded(true);
+                                                }}
+                                            />
+                                        </div>
                                     ) : isVideoMedia(selectedMedia) && isBunnyVideo(selectedMedia) ? (
                                         <div
                                             className={`relative mx-auto overflow-hidden bg-black ${selectedMediaAspectRatio < 1 ? "inline-block h-[calc(100dvh-5.5rem)] max-w-full md:h-[78vh]" : "w-full max-h-[calc(100dvh-5.5rem)] md:max-w-5xl md:max-h-[78vh]"}`}
                                             style={{ aspectRatio: selectedMediaAspectRatio }}
                                         >
+                                            {!mediaLoaded && (
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+                                                </div>
+                                            )}
                                             <iframe
                                                 src={selectedMedia.embedUrl}
                                                 title={selectedMedia.title}
@@ -1196,10 +1272,16 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                 allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                                                 allowFullScreen
                                                 className="absolute inset-0 h-full w-full border-0"
+                                                onLoad={() => setMediaLoaded(true)}
                                             />
                                         </div>
                                     ) : (
                                         <div className="relative inline-block max-w-full">
+                                            {!mediaLoaded && (
+                                                <div className="flex min-h-[200px] items-center justify-center md:min-h-[300px]">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/50" />
+                                                </div>
+                                            )}
                                             <img
                                                 src={getOptimizedImageUrl(
                                                     getPreviewUrl(selectedMedia) ||
@@ -1209,16 +1291,17 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                 )}
                                                 alt={selectedMedia.title}
                                                 {...protectedImageProps}
-                                                className="mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh]"
+                                                className={`mx-auto block h-auto w-auto max-h-[calc(100dvh-5.5rem)] max-w-full object-contain md:max-h-[78vh] ${mediaLoaded ? "" : "invisible absolute"}`}
                                                 onLoad={(event) => {
                                                     const media = event.currentTarget;
                                                     setNaturalDimensions({
                                                         width: media.naturalWidth,
                                                         height: media.naturalHeight,
                                                     });
+                                                    setMediaLoaded(true);
                                                 }}
                                             />
-                                            <PhotoProtectionOverlay />
+                                            {mediaLoaded && <PhotoProtectionOverlay />}
                                         </div>
                                     )}
                                     <button
