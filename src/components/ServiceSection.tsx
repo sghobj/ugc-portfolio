@@ -186,7 +186,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                 )}
                             </div>
                             <a
-                                href="#contact"
+                                href={`mailto:sarah.ghobj@hotmail.com?subject=${encodeURIComponent(`Interested in ${pkg.name || 'your services'}`)}&body=${encodeURIComponent(`Hi Sarah,\n\nI'm interested in your ${pkg.name || 'UGC'} services. I'd love to discuss a potential collaboration.\n\nBest regards,`)}`}
                                 className={`mt-6 inline-block self-start px-5 py-2.5 font-body text-sm uppercase tracking-wider transition-all ${
                                     pkg.featured
                                         ? "bg-accent text-accent-foreground hover:opacity-80"
