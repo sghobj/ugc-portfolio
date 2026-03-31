@@ -1,19 +1,22 @@
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-import AboutSection from "@/components/AboutSection";
 import CinematicVideoSection from "@/components/CinematicVideoSection";
 import ContactSection from "@/components/ContactSection";
 import ServicesSection from "@/components/ServiceSection.tsx";
 import { DataStateNotice } from "@/components/DataStateNotice";
 import { useUgcContent } from "@/hooks/useUgcContent";
 import PortfolioShowcase from "@/components/PortfolioShowcase";
+import TestimonialsSection from "@/components/TestimonialsSection";
+import { useTestimonials } from "@/hooks/useTestimonials";
 
 const Index = () => {
     const { content, isLoading, error } = useUgcContent();
+    const { testimonials, isLoading: isTestimonialsLoading, error: testimonialsError } = useTestimonials();
+    const hasTestimonials = testimonials.length > 0;
 
     return (
         <div className="bg-background text-foreground">
-            <Navbar />
+            <Navbar showTestimonials={hasTestimonials} />
             {error && (
                 <DataStateNotice
                     tone="error"
@@ -31,11 +34,17 @@ const Index = () => {
             ) : (
                 <>
                     <HeroSection hero={content.hero} />
-                    <AboutSection aboutMe={content.aboutMe} />
                     <CinematicVideoSection myWork={content.myWork} />
                     {/*<PortfolioSection myWork={content.myWork} />*/}
                     <PortfolioShowcase myWork={content.myWork} showcase={content.showcase} />
                     <ServicesSection myServices={content.myServices} />
+                    {hasTestimonials ? (
+                        <TestimonialsSection
+                            testimonials={testimonials}
+                            isLoading={isTestimonialsLoading}
+                            error={testimonialsError}
+                        />
+                    ) : null}
                     <ContactSection />
                     <footer className="py-6 text-center font-body text-xs text-muted-foreground tracking-wider">
                         (c) 2026 Sarah Ghobj. All rights reserved.

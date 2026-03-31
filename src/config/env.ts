@@ -4,6 +4,19 @@ export type BackendMode = (typeof backendModes)[number]
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '')
 
+const parsePath = (value: string, fallback: string): string => {
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return fallback
+  }
+
+  const prefixed = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  const normalized = prefixed.replace(/\/+$/, '')
+
+  return normalized || fallback
+}
+
 const sanitizeStageSegment = (value: string): string => {
   return value
     .trim()
@@ -51,4 +64,7 @@ export const env = {
   strapiToken: import.meta.env.VITE_STRAPI_TOKEN ?? '',
   customApiBaseUrl: trimTrailingSlash(import.meta.env.VITE_CUSTOM_API_URL ?? ''),
   uploadStage: parseUploadStage(),
+  feedbackFormPath: parsePath(import.meta.env.VITE_FEEDBACK_FORM_PATH ?? '/feedback', '/feedback'),
+  feedbackSubmitUrl: trimTrailingSlash(import.meta.env.VITE_FEEDBACK_SUBMIT_URL ?? ''),
+  feedbackSubmitToken: import.meta.env.VITE_STRAPI_FEEDBACK_TOKEN ?? '',
 }

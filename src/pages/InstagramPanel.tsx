@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress'
 import { env } from '@/config/env'
 import { clearUgcAdminToken, getUgcAdminMe, getUgcAdminToken } from '@/lib/ugcAdminAuth'
 import {
+  approveUgcAdminTestimonial,
   createBunnyVideoUploadStart,
   createCloudinaryUploadSignature,
   createUgcAdminAsset,
@@ -16,7 +17,9 @@ import {
   listUgcAdminAssets,
   listUgcAdminCategories,
   listUgcAdminCollections,
+  listUgcAdminTestimonials,
   reorderUgcAdminAssets,
+  unpublishUgcAdminTestimonial,
   updateUgcAdminAsset,
   uploadFileToBunnyTus,
   uploadFileToCloudinary,
@@ -25,6 +28,7 @@ import {
   type UgcAdminCategory,
   type UgcAdminConfig,
   type UgcAdminCollection,
+  type UgcAdminTestimonial,
 } from '@/lib/ugcAdminApi'
 import { useNavigate } from 'react-router-dom'
 
@@ -63,6 +67,46 @@ const emptyAssetForm: AssetFormState = {
 
 const asString = (value: unknown): string => (typeof value === 'string' ? value : '')
 
+const asIsoTimestamp = (value?: string | null): number => {
+  if (!value) {
+    return 0
+  }
+
+  const parsed = Date.parse(value)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+const formatDateLabel = (value?: string | null): string => {
+  if (!value) {
+    return 'Unknown date'
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Unknown date'
+  }
+
+  return parsed.toLocaleDateString()
+}
+
+const resolveAdminAssetUrl = (value?: string | null): string => {
+  const raw = asString(value).trim()
+  if (!raw) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw
+  }
+
+  const base = env.strapiBaseUrl.replace(/\/+$/, '')
+  if (!base) {
+    return raw
+  }
+
+  return `${base}${raw.startsWith('/') ? raw : `/${raw}`}`
+}
+
 const sanitizeFolderSegment = (value: string): string => {
   return value
     .trim()
@@ -95,6 +139,7 @@ export const InstagramPanel = () => {
   const [categories, setCategories] = useState<UgcAdminCategory[]>([])
   const [collections, setCollections] = useState<UgcAdminCollection[]>([])
   const [assets, setAssets] = useState<UgcAdminAsset[]>([])
+  const [testimonials, setTestimonials] = useState<UgcAdminTestimonial[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmittingCategory, setIsSubmittingCategory] = useState(false)
   const [isSubmittingCollection, setIsSubmittingCollection] = useState(false)
@@ -108,6 +153,9 @@ export const InstagramPanel = () => {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [isApprovingTestimonialId, setIsApprovingTestimonialId] = useState<number | null>(null)
+  const [isUnpublishingTestimonialId, setIsUnpublishingTestimonialId] = useState<number | null>(null)
+  const [isFeedbackLinkCopied, setIsFeedbackLinkCopied] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [assetsTab, setAssetsTab] = useState<'highlights' | 'videos' | 'collections' | 'unassigned'>('highlights')
@@ -130,6 +178,27 @@ export const InstagramPanel = () => {
     () => assets.filter((a) => !a.placement && !a.collection),
     [assets],
   )
+  const pendingTestimonials = useMemo(
+    () =>
+      testimonials
+        .filter((testimonial) => !testimonial.approved)
+        .sort((a, b) => asIsoTimestamp(b.createdAt) - asIsoTimestamp(a.createdAt)),
+    [testimonials],
+  )
+  const approvedTestimonials = useMemo(
+    () =>
+      testimonials
+        .filter((testimonial) => testimonial.approved)
+        .sort((a, b) => asIsoTimestamp(b.createdAt) - asIsoTimestamp(a.createdAt)),
+    [testimonials],
+  )
+  const feedbackFormUrl = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return env.feedbackFormPath
+    }
+
+    return `${window.location.origin}${env.feedbackFormPath}`
+  }, [])
 
   useEffect(() => {
     const currentToken = getUgcAdminToken()
@@ -142,12 +211,13 @@ export const InstagramPanel = () => {
   }, [navigate])
 
   const loadData = async (activeToken: string): Promise<void> => {
-    const [me, cfg, categoryRows, collectionRows, assetRows] = await Promise.all([
+    const [me, cfg, categoryRows, collectionRows, assetRows, testimonialRows] = await Promise.all([
       getUgcAdminMe(activeToken),
       fetchUgcAdminConfig(),
       listUgcAdminCategories(activeToken),
       listUgcAdminCollections(activeToken),
       listUgcAdminAssets(activeToken),
+      listUgcAdminTestimonials(activeToken),
     ])
 
     setUser(me)
@@ -155,6 +225,7 @@ export const InstagramPanel = () => {
     setCategories(categoryRows)
     setCollections(collectionRows)
     setAssets(assetRows)
+    setTestimonials(testimonialRows)
   }
 
   useEffect(() => {
@@ -463,6 +534,68 @@ export const InstagramPanel = () => {
           ? deleteError.message
           : 'Could not delete asset.'
       setError(messageText)
+    }
+  }
+
+  const handleApproveTestimonial = async (testimonial: UgcAdminTestimonial): Promise<void> => {
+    if (!token) {
+      return
+    }
+
+    setError(null)
+    setMessage(null)
+    setIsApprovingTestimonialId(testimonial.id)
+
+    try {
+      await approveUgcAdminTestimonial(token, testimonial.id)
+      await loadData(token)
+      setMessage(`Approved testimonial from "${testimonial.name}".`)
+    } catch (approveError) {
+      const messageText =
+        approveError instanceof Error && approveError.message
+          ? approveError.message
+          : 'Could not approve testimonial.'
+      setError(messageText)
+    } finally {
+      setIsApprovingTestimonialId(null)
+    }
+  }
+
+  const handleUnpublishTestimonial = async (testimonial: UgcAdminTestimonial): Promise<void> => {
+    if (!token) {
+      return
+    }
+
+    setError(null)
+    setMessage(null)
+    setIsUnpublishingTestimonialId(testimonial.id)
+
+    try {
+      await unpublishUgcAdminTestimonial(token, testimonial.id)
+      await loadData(token)
+      setMessage(`Unpublished testimonial from "${testimonial.name}".`)
+    } catch (unpublishError) {
+      const messageText =
+        unpublishError instanceof Error && unpublishError.message
+          ? unpublishError.message
+          : 'Could not unpublish testimonial.'
+      setError(messageText)
+    } finally {
+      setIsUnpublishingTestimonialId(null)
+    }
+  }
+
+  const handleCopyFeedbackFormLink = async (): Promise<void> => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(feedbackFormUrl)
+      setIsFeedbackLinkCopied(true)
+      window.setTimeout(() => setIsFeedbackLinkCopied(false), 1800)
+    } catch {
+      setIsFeedbackLinkCopied(false)
     }
   }
 
@@ -980,6 +1113,107 @@ export const InstagramPanel = () => {
                     : 'Upload Image to Cloudinary + Save Metadata'}
               </button>
             </form>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-display text-3xl italic text-foreground">Testimonials</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Review incoming feedback and publish approved testimonials.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Pending: {pendingTestimonials.length}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyFeedbackFormLink()}
+                  className="mt-2 inline-flex h-8 items-center justify-center rounded border border-border px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground transition hover:bg-muted"
+                >
+                  {isFeedbackLinkCopied ? 'Copied' : 'Copy Feedback Link'}
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 break-all text-xs text-muted-foreground">{feedbackFormUrl}</p>
+
+            {pendingTestimonials.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">No pending testimonials right now.</p>
+            ) : (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {pendingTestimonials.map((testimonial) => {
+                  const avatarUrl = resolveAdminAssetUrl(testimonial.avatar?.url)
+
+                  return (
+                    <article key={testimonial.id} className="rounded-lg border border-border bg-background p-4">
+                      <div className="flex items-center gap-3">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={testimonial.avatar?.alternativeText || testimonial.name}
+                            className="h-10 w-10 rounded-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-xs text-muted-foreground">
+                            {testimonial.name.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{testimonial.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {testimonial.role || 'No role provided'}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="mt-3 line-clamp-5 text-sm leading-relaxed text-foreground">
+                        &ldquo;{testimonial.quote}&rdquo;
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Submitted: {formatDateLabel(testimonial.createdAt)}
+                      </p>
+                      <button
+                        onClick={() => void handleApproveTestimonial(testimonial)}
+                        disabled={isApprovingTestimonialId === testimonial.id}
+                        className="mt-3 inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isApprovingTestimonialId === testimonial.id
+                          ? 'Approving...'
+                          : 'Approve & Publish'}
+                      </button>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+
+            {approvedTestimonials.length > 0 ? (
+              <details className="mt-5 rounded-md border border-border bg-background p-3">
+                <summary className="cursor-pointer text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Recently approved ({approvedTestimonials.length})
+                </summary>
+                <ul className="mt-3 space-y-2">
+                  {approvedTestimonials.slice(0, 8).map((testimonial) => (
+                    <li
+                      key={testimonial.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded border border-border px-3 py-2"
+                    >
+                      <p className="text-sm text-foreground">
+                        {testimonial.name} - {testimonial.role || 'Client'}
+                      </p>
+                      <button
+                        onClick={() => void handleUnpublishTestimonial(testimonial)}
+                        disabled={isUnpublishingTestimonialId === testimonial.id}
+                        className="inline-flex h-8 items-center justify-center rounded border border-border px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {isUnpublishingTestimonialId === testimonial.id ? 'Unpublishing...' : 'Unpublish'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5">
