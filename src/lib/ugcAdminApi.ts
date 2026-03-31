@@ -48,6 +48,23 @@ export type UgcAdminAsset = {
   collection?: UgcAdminCollection | null
 }
 
+export type UgcAdminTestimonial = {
+  id: number
+  name: string
+  role?: string | null
+  quote: string
+  approved: boolean
+  publishedAt?: string | null
+  createdAt?: string | null
+  avatar?: {
+    id?: number | null
+    url?: string | null
+    alternativeText?: string | null
+    width?: number | null
+    height?: number | null
+  } | null
+}
+
 export type UgcAdminConfig = {
   maxUploadMb?: number
   portfolioFolder?: string
@@ -226,6 +243,38 @@ export const createUgcAdminCollection = async (
 
 export const listUgcAdminAssets = async (token: string): Promise<UgcAdminAsset[]> => {
   return await request<UgcAdminAsset[]>(token, '/assets')
+}
+
+export const listUgcAdminTestimonials = async (token: string): Promise<UgcAdminTestimonial[]> => {
+  return await request<UgcAdminTestimonial[]>(token, '/testimonials')
+}
+
+export const approveUgcAdminTestimonial = async (
+  token: string,
+  testimonialId: number,
+): Promise<UgcAdminTestimonial> => {
+  return await request<UgcAdminTestimonial>(
+    token,
+    `/testimonials/${testimonialId}/approve`,
+    {
+      method: 'POST',
+    },
+    'Failed to approve testimonial',
+  )
+}
+
+export const unpublishUgcAdminTestimonial = async (
+  token: string,
+  testimonialId: number,
+): Promise<UgcAdminTestimonial> => {
+  return await request<UgcAdminTestimonial>(
+    token,
+    `/testimonials/${testimonialId}/unpublish`,
+    {
+      method: 'POST',
+    },
+    'Failed to unpublish testimonial',
+  )
 }
 
 export const createCloudinaryUploadSignature = async (

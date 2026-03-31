@@ -68,6 +68,9 @@ VITE_STRAPI_URL=http://localhost:1337
 VITE_STRAPI_TOKEN=
 VITE_CUSTOM_API_URL=http://localhost:4000/api
 VITE_UPLOAD_STAGE=local
+VITE_FEEDBACK_FORM_PATH=/feedback
+VITE_FEEDBACK_SUBMIT_URL=
+VITE_STRAPI_FEEDBACK_TOKEN=
 ```
 
 Behavior:
@@ -75,6 +78,9 @@ Behavior:
 - `strapi`: reads from Strapi collections
 - `custom`: reads from custom API routes
 - `VITE_UPLOAD_STAGE`: upload scope prefix used for Cloudinary/Bunny folders (for example `local`, `staging`, `prod`)
+- `VITE_FEEDBACK_FORM_PATH`: frontend route path for the shareable client feedback form
+- `VITE_FEEDBACK_SUBMIT_URL`: optional override URL for form submissions
+- `VITE_STRAPI_FEEDBACK_TOKEN`: optional bearer token used only for feedback submissions
 
 If `VITE_BACKEND_MODE` is not set:
 - uses `strapi` when `VITE_STRAPI_URL` exists
@@ -82,9 +88,9 @@ If `VITE_BACKEND_MODE` is not set:
 
 ## Strapi Endpoints Used
 
-- `/api/portfolio-items?populate=*`
-- `/api/services?populate=*`
-- `/api/testimonials?populate=*`
+- GraphQL `ugcSecure` query for hero/about/services/work/showcase
+- `GET /api/testimonial-feedback/public`
+- `POST /api/testimonial-feedback/submit`
 
 `portfolio-items` can include optional fields used by this UI:
 - `kind` (`video` or `photo`)

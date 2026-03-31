@@ -7,10 +7,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import FeedbackPage from "./pages/Feedback";
 import InstagramLogin from "./pages/InstagramLogin";
 import { InstagramPanel } from "./pages/InstagramPanel";
 import NotFound from "./pages/NotFound";
 import { ApiClientOutlet } from "@/components/ApiClientOutlet";
+import { env } from "@/config/env";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,7 @@ const App = () => (
                         </Route>
                         <Route element={<ApiClientOutlet />}>
                             <Route path="/" element={<Index />} />
+                            <Route path={env.feedbackFormPath} element={<FeedbackPage />} />
                             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                             <Route path="*" element={<NotFound />} />
                         </Route>

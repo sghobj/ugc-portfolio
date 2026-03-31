@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
-const navLinks = [
-    { label: "About", href: "#about" },
-    { label: "Work", href: "#portfolio" },
-    { label: "Services", href: "#services" },
-    { label: "Contact", href: "#contact" },
-];
+type NavbarProps = {
+    showTestimonials?: boolean;
+};
 
-const Navbar = () => {
+const Navbar = ({ showTestimonials = false }: NavbarProps) => {
     const [open, setOpen] = useState(false);
+    const navLinks = [
+        { label: "Work", href: "#portfolio" },
+        { label: "Services", href: "#services" },
+        ...(showTestimonials ? [{ label: "Testimonials", href: "#testimonials" }] : []),
+        { label: "Contact", href: "#contact" },
+    ];
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
