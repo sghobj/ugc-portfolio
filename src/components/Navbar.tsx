@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { brand } from "@/content/brand";
 
 type NavbarProps = {
     showTestimonials?: boolean;
@@ -17,8 +18,16 @@ const Navbar = ({ showTestimonials = false }: NavbarProps) => {
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
             <div className="container mx-auto px-6 lg:px-16 flex items-center justify-between h-16">
-                <a href="#" className="font-display text-xl text-foreground tracking-wide">
-                    Sarah <span className="italic">Ghobj</span>
+                <a href="#home" className="flex items-center gap-2.5">
+                    <img
+                        src={brand.logoUrl}
+                        alt={brand.logoAlt}
+                        className="h-9 w-9 rounded-full border border-border/60 object-cover"
+                        loading="eager"
+                    />
+                    <span className="font-display text-xl text-foreground tracking-wide">
+                        Sarah <span className="italic">Ghobj</span>
+                    </span>
                 </a>
 
                 {/* Desktop */}

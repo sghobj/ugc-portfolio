@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { ArrowLeft, Send } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { submitTestimonial } from '@/lib/api/testimonialsApi'
+import { brand } from '@/content/brand'
 
 type FeedbackFormState = {
   name: string
@@ -60,6 +61,14 @@ const FeedbackPage = () => {
           transition={{ duration: 0.55 }}
           className="border border-border bg-card p-6 shadow-sm lg:p-8"
         >
+          <div className="mb-5 flex justify-center">
+            <img
+              src={brand.logoUrl}
+              alt={brand.logoAlt}
+              className="h-20 w-20 rounded-full border border-border object-cover sm:h-24 sm:w-24"
+              loading="lazy"
+            />
+          </div>
           <p className="font-body text-xs uppercase tracking-[0.3em] text-accent">Client Feedback</p>
           <h1 className="mt-3 font-display text-4xl italic sm:text-5xl">Share your experience</h1>
           <p className="mt-3 max-w-2xl font-body text-sm leading-relaxed text-muted-foreground">

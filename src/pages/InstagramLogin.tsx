@@ -7,6 +7,7 @@ import {
   loginUgcAdmin,
   validateUgcAdminToken,
 } from '@/lib/ugcAdminAuth'
+import { brand } from '@/content/brand'
 
 type LoginLocationState = {
   from?: string
@@ -117,6 +118,18 @@ const InstagramLogin = () => {
   return (
     <main className="min-h-screen bg-background px-6 py-12">
       <section className="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
+        <div className="mb-5 flex items-center gap-3">
+          <img
+            src={brand.logoUrl}
+            alt={brand.logoAlt}
+            className="h-10 w-10 rounded-full border border-border object-cover"
+            loading="lazy"
+          />
+          <p className="font-display text-xl text-foreground">
+            Sarah <span className="italic">Ghobj</span>
+          </p>
+        </div>
+
         <h1 className="font-display text-2xl text-foreground">UGC Portfolio Admin Login</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Sign in with your Strapi account to manage uploads and metadata.
