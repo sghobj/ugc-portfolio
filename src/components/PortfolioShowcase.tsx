@@ -55,6 +55,7 @@ import type {
 } from "@/hooks/useUgcContent";
 import { buildCloudinaryImageUrl, isCloudinaryUrl } from "@/lib/cloudinary";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
+import { resolveStoryTrack } from "@/components/portfolioShowcaseTrack";
 
 type PortfolioShowcaseProps = {
     myWork?: UgcWorkContent;
@@ -98,21 +99,6 @@ type ShowcaseLane = "collections" | "highlights";
 const IMAGE_WIDTHS = [640, 960, 1280];
 const IMAGE_SIZES = "(max-width: 768px) 92vw, (max-width: 1280px) 46vw, 31vw";
 
-const TRACK_RULES: Array<{ label: string; keywords: string[] }> = [
-    {
-        label: "Hotels & Resorts",
-        keywords: ["hotel", "resort", "hospitality", "suite", "stay", "spa", "amenity"],
-    },
-    {
-        label: "Airlines & Transit",
-        keywords: ["airline", "flight", "airport", "cabin", "aviation", "lounge", "traveler"],
-    },
-    {
-        label: "Destinations & Travel",
-        keywords: ["travel", "destination", "tourism", "journey", "roadtrip", "adventure", "trip"],
-    },
-];
-
 const stripMarkdownInline = (value: string): string => {
     return value
         .replace(/!\[[^\]]*]\([^)]*\)/g, "")
@@ -120,14 +106,6 @@ const stripMarkdownInline = (value: string): string => {
         .replace(/[_*`~>#-]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
-};
-
-const toTitleCase = (value: string): string => {
-    return value
-        .split(/[\s/_-]+/)
-        .filter(Boolean)
-        .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
-        .join(" ");
 };
 
 const slugify = (value: string): string => {
@@ -272,32 +250,6 @@ const hasMediaSource = (
     [entry.mediaUrl, entry.previewUrl, entry.embedUrl, entry.playbackUrl, entry.thumbnailUrl].some(
         (value) => value.trim().length > 0,
     );
-
-const resolveStoryTrack = (
-    categories: string[],
-    title: string,
-    description: string,
-    goal: string,
-    style: string,
-): string => {
-    const searchSpace = [
-        ...categories,
-        title,
-        description,
-        goal,
-        style,
-    ]
-        .join(" ")
-        .toLowerCase();
-
-    for (const rule of TRACK_RULES) {
-        if (rule.keywords.some((keyword) => searchSpace.includes(keyword))) {
-            return rule.label;
-        }
-    }
-
-    return categories.length > 0 ? toTitleCase(categories[0]) : "";
-};
 
 const toStoryMediaFromCms = (entry: UgcWorkMediaContent): StoryMedia => {
     const categories = dedupe(entry.categories.map((category) => category.trim()));
