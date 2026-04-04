@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Clapperboard, Eye, EyeOff, Layers, Loader2, Play, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Clapperboard, Eye, EyeOff, Layers, Loader2, MoveHorizontal, Play, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,6 +45,91 @@ function CarouselNav({ className, variant = "light" }: { className?: string; var
                 <ArrowRight className="h-4 w-4" />
             </button>
         </div>
+    );
+}
+
+function CarouselProgress({
+    total,
+    className,
+    variant = "light",
+}: {
+    total: number;
+    className?: string;
+    variant?: "light" | "dark";
+}) {
+    const { api } = useCarousel();
+    const [shownCount, setShownCount] = useState(0);
+
+    useEffect(() => {
+        if (!api) {
+            return;
+        }
+
+        const updateShownCount = () => {
+            const selectedSnap = api.selectedScrollSnap();
+            const slideRegistry = api.internalEngine().slideRegistry;
+            const snapSlides = slideRegistry[selectedSnap] ?? [];
+
+            if (snapSlides.length > 0) {
+                const maxSnapSlideIndex = Math.max(...snapSlides);
+                setShownCount(Math.min(total, maxSnapSlideIndex + 1));
+                return;
+            }
+
+            const snapCount = api.scrollSnapList().length;
+            if (snapCount > 0) {
+                const progressRatio = (selectedSnap + 1) / snapCount;
+                const fallbackShown = Math.max(1, Math.ceil(total * progressRatio));
+                setShownCount(Math.min(total, fallbackShown));
+                return;
+            }
+
+            setShownCount(total > 0 ? 1 : 0);
+        };
+
+        updateShownCount();
+        api.on("select", updateShownCount);
+        api.on("reInit", updateShownCount);
+
+        return () => {
+            api.off("select", updateShownCount);
+            api.off("reInit", updateShownCount);
+        };
+    }, [api, total]);
+
+    if (total <= 1) {
+        return null;
+    }
+
+    const toneClass =
+        variant === "light"
+            ? "text-muted-foreground border-border bg-background/75"
+            : "text-primary-foreground/75 border-primary-foreground/25 bg-primary-foreground/[0.08]";
+
+    return (
+        <p
+            className={cn(
+                "inline-flex items-center rounded-full border px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.14em] sm:px-2.5 sm:text-[0.58rem] sm:tracking-[0.16em]",
+                toneClass,
+                className,
+            )}
+        >
+            {shownCount}/{total}
+        </p>
+    );
+}
+
+function MobileSwipeHint({ className }: { className?: string }) {
+    return (
+        <p
+            className={cn(
+                "inline-flex items-center gap-1.5 font-body text-[0.56rem] uppercase tracking-[0.16em] sm:hidden",
+                className,
+            )}
+        >
+            <MoveHorizontal className="h-3.5 w-3.5" />
+            Swipe for more
+        </p>
     );
 }
 import type {
@@ -666,9 +751,12 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                 Narrative-First Campaign Sets
                             </h3>
                         </div>
+                        {collections.length > 1 && (
+                            <MobileSwipeHint className="text-muted-foreground" />
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-1 md:gap-4 md:overflow-visible md:pb-0 xl:grid-cols-2">
                         {collections.map((collection, index) => {
                             const previewEntries = collection.entries.slice(0, 4);
                             const previewCount = previewEntries.length;
@@ -680,7 +768,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true, margin: "-60px" }}
                                     transition={{ duration: 0.65, delay: index * 0.06 }}
-                                    className="group overflow-hidden border border-border bg-card/80 backdrop-blur-sm"
+                                    className="group min-w-[88%] snap-start overflow-hidden border border-border bg-card/80 backdrop-blur-sm md:min-w-0"
                                 >
                                     <button
                                         type="button"
@@ -782,7 +870,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
 
                 {activeLane === "highlights" && hasHighlights && (
                     <Carousel
-                        opts={{ align: "start" }}
+                        opts={{ align: "start", slidesToScroll: "auto" }}
                         className="w-full"
                     >
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -794,7 +882,13 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                 Signature Story Frames
                             </h3>
                         </div>
-                        <CarouselNav variant="light" />
+                        {highlights.length > 1 && (
+                            <MobileSwipeHint className="text-muted-foreground" />
+                        )}
+                        <div className="flex items-center gap-2">
+                            <CarouselProgress total={highlights.length} variant="light" />
+                            <CarouselNav variant="light" />
+                        </div>
                     </div>
 
                         <CarouselContent className="-ml-4">
@@ -807,7 +901,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                 return (
                                     <CarouselItem
                                         key={item.id}
-                                        className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
+                                        className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
                                     >
                                         <motion.button
                                             type="button"
@@ -902,7 +996,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                     <div className="mt-14 overflow-hidden border border-foreground/20 bg-foreground text-primary-foreground">
                         <div className="p-4 sm:p-5 lg:p-6">
                             <Carousel
-                                opts={{ align: "start" }}
+                                opts={{ align: "start", slidesToScroll: "auto" }}
                                 className="w-full"
                             >
                             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -914,7 +1008,13 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         Cinematic Story Cuts
                                     </h3>
                                 </div>
-                                <CarouselNav variant="dark" />
+                                {videos.length > 1 && (
+                                    <MobileSwipeHint className="text-primary-foreground/70" />
+                                )}
+                                <div className="flex items-center gap-2">
+                                    <CarouselProgress total={videos.length} variant="dark" />
+                                    <CarouselNav variant="dark" />
+                                </div>
                             </div>
                                 <CarouselContent className="-ml-4">
                                     {videos.map((video, index) => {
@@ -927,7 +1027,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         return (
                                             <CarouselItem
                                                 key={video.id}
-                                                className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
+                                                className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
                                             >
                                                 <motion.button
                                                     type="button"
