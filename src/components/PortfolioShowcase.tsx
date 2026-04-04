@@ -978,10 +978,6 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                             />
                                                         )}
                                                         {!canUseInlineVideoPreview(video) && <PhotoProtectionOverlay />}
-                                                        <span className="absolute left-3 top-3 inline-flex items-center gap-1 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.14em] text-foreground">
-                                                            <Clapperboard className="h-3 w-3 text-accent" />
-                                                            {video.provider === "bunny" ? "Bunny Stream" : "Video Story"}
-                                                        </span>
                                                         <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/50 bg-primary-foreground/10 text-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:bg-accent group-hover:text-accent-foreground">
                                                             <Play className="h-3.5 w-3.5" />
                                                         </span>
