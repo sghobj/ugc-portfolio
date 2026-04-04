@@ -7,7 +7,7 @@ export const SiteLayout = () => {
     <div className="min-h-screen text-[var(--ink)]">
       <header className="nav-shell">
         <div className="layout-wrap flex flex-wrap items-center justify-between gap-4 py-5 md:py-6">
-          <a href="#home" className="block">
+          <a href="/#home" className="block">
             <p
               className="text-[1.75rem] leading-none tracking-[-0.01em] text-[var(--ink)] md:text-[2rem]"
               style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}

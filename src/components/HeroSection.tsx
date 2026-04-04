@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import heroImage from "@/assets/hero-portrait.jpg";
 import type { UgcHeroContent } from "@/hooks/useUgcContent";
+import { MarkdownContent } from "@/components/MarkdownContent";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 
 type HeroSectionProps = {
@@ -46,22 +47,23 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                             </h1>
                         )}
                         {description && (
-                            <p className="font-body text-base text-muted-foreground max-w-md leading-relaxed mb-6">
-                                {description}
-                            </p>
+                            <MarkdownContent
+                                content={description}
+                                className="mb-6 max-w-xl lg:max-w-2xl font-body text-base leading-relaxed text-muted-foreground text-justify"
+                            />
                         )}
                         <div className="flex flex-wrap gap-3">
                             <a
-                                href="#contact"
+                                href="/#portfolio"
+                                className="inline-block border border-foreground text-foreground font-body text-sm tracking-wider uppercase px-6 py-3 hover:bg-foreground hover:text-background transition-all"
+                            >
+                                View my Work
+                            </a>
+                            <a
+                                href="/#contact"
                                 className="inline-block bg-foreground text-background font-body text-sm tracking-wider uppercase px-6 py-3 hover:opacity-80 transition-opacity"
                             >
                                 Work With Me
-                            </a>
-                            <a
-                                href="#portfolio"
-                                className="inline-block border border-foreground text-foreground font-body text-sm tracking-wider uppercase px-6 py-3 hover:bg-foreground hover:text-background transition-all"
-                            >
-                                View Work
                             </a>
                         </div>
                     </motion.div>

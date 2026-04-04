@@ -1,7 +1,7 @@
 export const navLinks = [
-  { href: '#portfolio', label: 'Work' },
-  { href: '#services', label: 'Services' },
-  { href: '#contact', label: 'Contact' },
+  { href: '/#portfolio', label: 'Work' },
+  { href: '/#services', label: 'Services' },
+  { href: '/#contact', label: 'Contact' },
 ]
 
 export const expectationCards = [
