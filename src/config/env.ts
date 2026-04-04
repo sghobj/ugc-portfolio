@@ -67,4 +67,5 @@ export const env = {
   feedbackFormPath: parsePath(import.meta.env.VITE_FEEDBACK_FORM_PATH ?? '/feedback', '/feedback'),
   feedbackSubmitUrl: trimTrailingSlash(import.meta.env.VITE_FEEDBACK_SUBMIT_URL ?? ''),
   feedbackSubmitToken: import.meta.env.VITE_STRAPI_FEEDBACK_TOKEN ?? '',
+  serviceInquirySubmitUrl: trimTrailingSlash(import.meta.env.VITE_SERVICE_INQUIRY_SUBMIT_URL ?? ''),
 }
