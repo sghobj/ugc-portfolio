@@ -11,6 +11,7 @@ import PortfolioShowcase from "@/components/PortfolioShowcase";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import { useTestimonials } from "@/hooks/useTestimonials";
 import { brand } from "@/content/brand";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 
 const HASH_SCROLL_RETRY_LIMIT = 30;
 const FIXED_HEADER_OFFSET = 72;
@@ -118,6 +119,7 @@ const Index = () => {
                     </footer>
                 </>
             )}
+            <ScrollToTopButton />
         </div>
     );
 };

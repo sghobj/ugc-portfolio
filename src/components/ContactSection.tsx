@@ -41,7 +41,7 @@ const ContactSection = () => {
                                 Instagram
                             </a>
                             <a
-                                href="mailto:sarah.ghobj@hotmail.com"
+                                href="mailto:collabs@sarah-ghobj.com"
                                 className="flex items-center gap-2 font-body text-sm text-primary-foreground/50 transition-colors hover:text-accent"
                             >
                                 <Mail className="w-4 h-4" />
