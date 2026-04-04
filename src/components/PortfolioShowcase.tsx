@@ -895,6 +895,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                             {highlights.map((item, index) => {
                                 const highlightPreviewUrl =
                                     getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
+                                const shouldPrioritizePreview = index < 2;
                                 const goalAndStyle = [item.goal, item.style]
                                     .filter((value) => value.length > 0)
                                     .join(" / ");
@@ -905,10 +906,6 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     >
                                         <motion.button
                                             type="button"
-                                            initial={{ opacity: 0, y: 24 }}
-                                            whileInView={{ opacity: 1, y: 0 }}
-                                            viewport={{ once: true, margin: "-60px" }}
-                                            transition={{ duration: 0.6, delay: index * 0.04 }}
                                             onClick={() => setSelectedMedia(item)}
                                             className="group flex h-full w-full flex-col overflow-hidden border border-border bg-card text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent"
                                             aria-label={`Open highlight details for ${item.title}`}
@@ -921,7 +918,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                         loop
                                                         autoPlay
                                                         playsInline
-                                                        preload="metadata"
+                                                        preload={shouldPrioritizePreview ? "auto" : "metadata"}
+                                                        poster={highlightPreviewUrl}
                                                         className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
                                                     />
                                                 ) : (
@@ -937,8 +935,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                             highlightPreviewUrl,
                                                         )}
                                                         alt={item.title}
-                                                        loading="lazy"
+                                                        loading={shouldPrioritizePreview ? "eager" : "lazy"}
                                                         decoding="async"
+                                                        fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
                                                         {...protectedImageProps}
                                                         className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
                                                     />
@@ -1020,6 +1019,11 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     {videos.map((video, index) => {
                                         const isPortrait = getOrientation(video.width, video.height) === "portrait";
                                         const previewHeight = isPortrait ? 980 : 560;
+                                        const shouldPrioritizePreview = index < 2;
+                                        const videoPreviewUrl =
+                                            getPreviewUrl(video) ||
+                                            video.thumbnailUrl ||
+                                            video.mediaUrl;
                                         const goalAndStyle = [video.goal, video.style]
                                             .filter((value) => value.length > 0)
                                             .join(" / ");
@@ -1031,10 +1035,6 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                             >
                                                 <motion.button
                                                     type="button"
-                                                    initial={{ opacity: 0, y: 24 }}
-                                                    whileInView={{ opacity: 1, y: 0 }}
-                                                    viewport={{ once: true, margin: "-60px" }}
-                                                    transition={{ duration: 0.6, delay: index * 0.06 }}
                                                     onClick={() => setSelectedMedia(video)}
                                                     className="group flex h-full w-full flex-col overflow-hidden border border-primary-foreground/20 bg-primary-foreground/[0.06] text-left transition-all duration-300 hover:border-accent"
                                                     aria-label={`Open video story details for ${video.title}`}
@@ -1047,32 +1047,28 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                                 loop
                                                                 autoPlay
                                                                 playsInline
-                                                                preload="metadata"
+                                                                preload={shouldPrioritizePreview ? "auto" : "metadata"}
+                                                                poster={videoPreviewUrl}
                                                                 className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
                                                             />
                                                         ) : (
                                                             <img
                                                                 src={getOptimizedImageUrl(
-                                                                    getPreviewUrl(video) ||
-                                                                        video.thumbnailUrl ||
-                                                                        video.mediaUrl,
+                                                                    videoPreviewUrl,
                                                                     IMAGE_WIDTHS[1],
                                                                     previewHeight,
                                                                 )}
                                                                 srcSet={getImageSrcSet(
-                                                                    getPreviewUrl(video) ||
-                                                                        video.thumbnailUrl ||
-                                                                        video.mediaUrl,
+                                                                    videoPreviewUrl,
                                                                     previewHeight,
                                                                 )}
                                                                 sizes={getImageSizes(
-                                                                    getPreviewUrl(video) ||
-                                                                        video.thumbnailUrl ||
-                                                                        video.mediaUrl,
+                                                                    videoPreviewUrl,
                                                                 )}
                                                                 alt={video.title}
-                                                                loading="lazy"
+                                                                loading={shouldPrioritizePreview ? "eager" : "lazy"}
                                                                 decoding="async"
+                                                                fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
                                                                 {...protectedImageProps}
                                                                 className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
                                                             />
