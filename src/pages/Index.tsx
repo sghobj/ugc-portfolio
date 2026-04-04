@@ -16,9 +16,6 @@ import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 const HASH_SCROLL_RETRY_LIMIT = 30;
 const FIXED_HEADER_OFFSET = 72;
 
-const HASH_SCROLL_RETRY_LIMIT = 30;
-const FIXED_HEADER_OFFSET = 72;
-
 const Index = () => {
     const location = useLocation();
     const { content, isLoading, error } = useUgcContent();
