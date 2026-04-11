@@ -21,7 +21,7 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
     const lastName = lastNameParts.join(" ");
 
     return (
-        <section className="relative flex min-h-[88vh] items-center overflow-hidden pt-20 pb-12 lg:pt-24 lg:pb-16">
+        <section className="relative flex min-h-[88vh] items-center overflow-hidden pt-20 pb-12 lg:h-[calc(100dvh-4rem)] lg:min-h-0 lg:pt-20 lg:pb-10">
             <div className="container mx-auto px-6 lg:px-16">
                 <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
                     <motion.div
@@ -74,7 +74,7 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                         transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
                         className="order-1 lg:order-2"
                     >
-                        <div className="relative">
+                        <div className="relative mx-auto w-full max-w-sm lg:ml-auto lg:max-w-[30rem]">
                             <div className="relative aspect-[3/4] overflow-hidden">
                                 <img
                                     src={heroImage}
