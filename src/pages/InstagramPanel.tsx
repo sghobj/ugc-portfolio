@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from 'react'
 import Navbar from '@/components/Navbar'
 import { Progress } from '@/components/ui/progress'
 import { env } from '@/config/env'
@@ -144,6 +144,60 @@ const sortAssetsBySortOrder = (rows: UgcAdminAsset[]): UgcAdminAsset[] => {
   })
 }
 
+type FocalPoint = {
+  x: number
+  y: number
+}
+
+const DEFAULT_FOCAL_POINT: FocalPoint = { x: 50, y: 50 }
+
+const clampFocalPoint = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return 50
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value * 100) / 100))
+}
+
+const resolveAssetFocalPoint = (asset: Pick<UgcAdminAsset, 'focalPointX' | 'focalPointY'>): FocalPoint => ({
+  x: clampFocalPoint(typeof asset.focalPointX === 'number' ? asset.focalPointX : DEFAULT_FOCAL_POINT.x),
+  y: clampFocalPoint(typeof asset.focalPointY === 'number' ? asset.focalPointY : DEFAULT_FOCAL_POINT.y),
+})
+
+const getFocalObjectPosition = (focalPoint: FocalPoint): string =>
+  `${clampFocalPoint(focalPoint.x)}% ${clampFocalPoint(focalPoint.y)}%`
+
+const resolveFocalPointFromPointer = (event: ReactPointerEvent<HTMLElement>): FocalPoint => {
+  const rect = event.currentTarget.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) {
+    return DEFAULT_FOCAL_POINT
+  }
+
+  const x = ((event.clientX - rect.left) / rect.width) * 100
+  const y = ((event.clientY - rect.top) / rect.height) * 100
+
+  return {
+    x: clampFocalPoint(x),
+    y: clampFocalPoint(y),
+  }
+}
+
+const getCollectionDialogGridAspectClass = (count: number): string => {
+  if (count <= 1) {
+    return 'aspect-[16/10] md:aspect-[16/9]'
+  }
+
+  if (count <= 2) {
+    return 'aspect-[4/3] md:aspect-[16/10]'
+  }
+
+  if (count <= 4) {
+    return 'aspect-[4/3]'
+  }
+
+  return 'aspect-square'
+}
+
 export const InstagramPanel = () => {
   const navigate = useNavigate()
   const [token, setToken] = useState<string | null>(null)
@@ -172,6 +226,12 @@ export const InstagramPanel = () => {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [assetsTab, setAssetsTab] = useState<'highlights' | 'videos' | 'collections' | 'unassigned'>('highlights')
+  const [focalDraftByAssetId, setFocalDraftByAssetId] = useState<Record<number, FocalPoint>>({})
+  const [activeFocalDrag, setActiveFocalDrag] = useState<{ assetId: number; pointerId: number } | null>(
+    null,
+  )
+  const activeFocalDragRef = useRef<{ assetId: number; pointerId: number } | null>(null)
+  const [isSavingFocalAssetId, setIsSavingFocalAssetId] = useState<number | null>(null)
 
   const maxUploadMb = useMemo(() => config?.maxUploadMb ?? 1000, [config?.maxUploadMb])
 
@@ -262,6 +322,9 @@ export const InstagramPanel = () => {
     setCategories(categoryRows)
     setCollections(collectionRows)
     setAssets(assetRows)
+    setFocalDraftByAssetId({})
+    setActiveFocalDrag(null)
+    activeFocalDragRef.current = null
     setTestimonials(testimonialRows)
   }
 
@@ -689,6 +752,155 @@ export const InstagramPanel = () => {
     setMessage(`"${asset.title}" is now the collection cover.`)
   }
 
+  const resolveRenderedFocalPoint = (asset: UgcAdminAsset): FocalPoint =>
+    focalDraftByAssetId[asset.id] || resolveAssetFocalPoint(asset)
+
+  const persistAssetFocalPoint = async (
+    asset: UgcAdminAsset,
+    nextFocalPoint: FocalPoint,
+  ): Promise<void> => {
+    if (!token || asset.kind !== 'photo') {
+      return
+    }
+
+    const normalized = {
+      x: clampFocalPoint(nextFocalPoint.x),
+      y: clampFocalPoint(nextFocalPoint.y),
+    }
+    const current = resolveAssetFocalPoint(asset)
+    const didChange =
+      Math.abs(current.x - normalized.x) >= 0.1 || Math.abs(current.y - normalized.y) >= 0.1
+
+    if (!didChange) {
+      setFocalDraftByAssetId((previous) => {
+        const next = { ...previous }
+        delete next[asset.id]
+        return next
+      })
+      return
+    }
+
+    setError(null)
+    setIsSavingFocalAssetId(asset.id)
+
+    try {
+      await updateUgcAdminAsset(token, asset.id, {
+        focalPointX: normalized.x,
+        focalPointY: normalized.y,
+      })
+
+      setAssets((previous) =>
+        previous.map((entry) =>
+          entry.id === asset.id
+            ? { ...entry, focalPointX: normalized.x, focalPointY: normalized.y }
+            : entry,
+        ),
+      )
+      setFocalDraftByAssetId((previous) => {
+        const next = { ...previous }
+        delete next[asset.id]
+        return next
+      })
+      setMessage(`Thumbnail focus updated for "${asset.title}".`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update thumbnail focus.')
+    } finally {
+      setIsSavingFocalAssetId((currentSavingId) =>
+        currentSavingId === asset.id ? null : currentSavingId,
+      )
+    }
+  }
+
+  const handleFocalPointerDown = (event: ReactPointerEvent<HTMLDivElement>, asset: UgcAdminAsset): void => {
+    if (asset.kind !== 'photo') {
+      return
+    }
+
+    event.preventDefault()
+    const focalPoint = resolveFocalPointFromPointer(event)
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const nextDrag = { assetId: asset.id, pointerId: event.pointerId }
+    activeFocalDragRef.current = nextDrag
+    setActiveFocalDrag(nextDrag)
+    setFocalDraftByAssetId((previous) => ({
+      ...previous,
+      [asset.id]: focalPoint,
+    }))
+  }
+
+  const handleFocalPointerMove = (event: ReactPointerEvent<HTMLDivElement>, asset: UgcAdminAsset): void => {
+    const activeDrag = activeFocalDragRef.current
+    if (
+      !activeDrag ||
+      activeDrag.assetId !== asset.id ||
+      activeDrag.pointerId !== event.pointerId
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    const focalPoint = resolveFocalPointFromPointer(event)
+    setFocalDraftByAssetId((previous) => ({
+      ...previous,
+      [asset.id]: focalPoint,
+    }))
+  }
+
+  const handleFocalPointerUp = async (
+    event: ReactPointerEvent<HTMLDivElement>,
+    asset: UgcAdminAsset,
+  ): Promise<void> => {
+    const activeDrag = activeFocalDragRef.current
+    if (
+      !activeDrag ||
+      activeDrag.assetId !== asset.id ||
+      activeDrag.pointerId !== event.pointerId
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    const focalPoint = resolveFocalPointFromPointer(event)
+    activeFocalDragRef.current = null
+    setActiveFocalDrag(null)
+    setFocalDraftByAssetId((previous) => ({
+      ...previous,
+      [asset.id]: focalPoint,
+    }))
+    await persistAssetFocalPoint(asset, focalPoint)
+  }
+
+  const handleFocalPointerCancel = (event: ReactPointerEvent<HTMLDivElement>, asset: UgcAdminAsset): void => {
+    const activeDrag = activeFocalDragRef.current
+    if (
+      !activeDrag ||
+      activeDrag.assetId !== asset.id ||
+      activeDrag.pointerId !== event.pointerId
+    ) {
+      return
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    activeFocalDragRef.current = null
+    setActiveFocalDrag(null)
+    setFocalDraftByAssetId((previous) => {
+      const next = { ...previous }
+      delete next[asset.id]
+      return next
+    })
+  }
+
+  const handleResetFocalPoint = async (asset: UgcAdminAsset): Promise<void> => {
+    await persistAssetFocalPoint(asset, DEFAULT_FOCAL_POINT)
+  }
+
   const renderAssetCard = (
     asset: UgcAdminAsset,
     list: UgcAdminAsset[],
@@ -697,30 +909,85 @@ export const InstagramPanel = () => {
       allowSetAsCover?: boolean
       isCollectionCover?: boolean
       hidePlacementSelect?: boolean
+      enableFocalEditor?: boolean
+      previewAspectClass?: string
     },
   ) => {
     const bunnyAsset = isBunnyAsset(asset)
     const bunnyEmbedUrl = asset.bunny?.embedUrl || asset.secureUrl || ''
     const cloudinaryUrl = asset.cloudinary?.secureUrl || asset.secureUrl || ''
     const imageUrl = asset.cloudinary?.thumbnailUrl || asset.thumbnailUrl || cloudinaryUrl
+    const canAdjustFocal = Boolean(options?.enableFocalEditor && asset.kind === 'photo')
+    const isFocalDragging = activeFocalDrag?.assetId === asset.id
+    const focalPoint = resolveRenderedFocalPoint(asset)
+    const imageStyle: CSSProperties = { objectPosition: getFocalObjectPosition(focalPoint) }
+    const previewAspectClass = options?.previewAspectClass || 'aspect-[4/3]'
+    const previewFrameClass = `relative w-full overflow-hidden bg-muted ${previewAspectClass}`
 
     return (
       <article key={asset.id} className="overflow-hidden rounded-lg border border-border bg-background">
         {asset.kind === 'video' ? (
           bunnyAsset && bunnyEmbedUrl ? (
-            <iframe
-              src={bunnyEmbedUrl}
-              title={asset.title}
-              loading="lazy"
-              allow="autoplay; fullscreen; picture-in-picture"
-              allowFullScreen
-              className="h-48 w-full border-0 bg-muted"
-            />
+            <div className={previewFrameClass}>
+              <iframe
+                src={bunnyEmbedUrl}
+                title={asset.title}
+                loading="lazy"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 h-full w-full border-0 bg-muted"
+              />
+            </div>
           ) : (
-            <video controls preload="metadata" src={cloudinaryUrl} className="h-48 w-full object-cover" />
+            <div className={previewFrameClass}>
+              <video
+                controls
+                preload="metadata"
+                src={cloudinaryUrl}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            </div>
           )
         ) : (
-          <img src={imageUrl} alt={asset.title} className="h-48 w-full object-cover" />
+          <div
+            className={`${previewFrameClass} ${
+              canAdjustFocal
+                ? isFocalDragging
+                  ? 'cursor-grabbing touch-none select-none'
+                  : 'cursor-grab touch-none select-none'
+                : ''
+            }`}
+            onPointerDown={canAdjustFocal ? (event) => handleFocalPointerDown(event, asset) : undefined}
+            onPointerMove={canAdjustFocal ? (event) => handleFocalPointerMove(event, asset) : undefined}
+            onPointerUp={canAdjustFocal ? (event) => void handleFocalPointerUp(event, asset) : undefined}
+            onPointerCancel={canAdjustFocal ? (event) => handleFocalPointerCancel(event, asset) : undefined}
+          >
+            <img
+              src={imageUrl}
+              alt={asset.title}
+              className="h-full w-full object-cover scale-[1.04]"
+              style={imageStyle}
+              draggable={false}
+              onDragStart={(event) => event.preventDefault()}
+            />
+            {canAdjustFocal ? (
+              <>
+                <div className="pointer-events-none absolute inset-0 border border-white/20" />
+                <div
+                  className="pointer-events-none absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-white/35 shadow"
+                  style={{
+                    left: `${focalPoint.x}%`,
+                    top: `${focalPoint.y}%`,
+                  }}
+                />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2.5 py-1.5">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-white/92">
+                    Drag to set crop focus
+                  </p>
+                </div>
+              </>
+            ) : null}
+          </div>
         )}
         <div className="space-y-2 p-4">
           <h3 className="font-body text-sm font-semibold text-foreground">{asset.title}</h3>
@@ -740,6 +1007,33 @@ export const InstagramPanel = () => {
               : 'None'}
           </p>
           <div className="space-y-2 pt-1">
+            {canAdjustFocal ? (
+              <div className="space-y-2 rounded border border-border bg-card p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Preview focus</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {Math.round(focalPoint.x)}% / {Math.round(focalPoint.y)}%
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    {isSavingFocalAssetId === asset.id
+                      ? 'Saving...'
+                      : activeFocalDrag?.assetId === asset.id
+                        ? 'Release to save focus.'
+                        : 'Drag above to control cropping in the portfolio.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleResetFocalPoint(asset)}
+                    disabled={isSavingFocalAssetId === asset.id}
+                    className="inline-flex h-7 items-center justify-center rounded border border-border px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground transition hover:bg-muted disabled:opacity-40"
+                  >
+                    Center
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {!options?.hidePlacementSelect ? (
               <div className="space-y-1">
                 <label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Placement</label>
@@ -1319,7 +1613,7 @@ export const InstagramPanel = () => {
             {assetsTab === 'collections' && collectionAssetGroups.length > 0 ? (
               <div className="mt-4 space-y-6">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                  Dragless ordering: first photo in each collection is the portfolio overview cover.
+                  First photo is collection cover. Drag on image previews to set crop focus.
                 </p>
                 {collectionAssetGroups.map((group) => (
                   <article key={group.collection.id} className="rounded-md border border-border bg-background p-4">
@@ -1340,6 +1634,8 @@ export const InstagramPanel = () => {
                           allowSetAsCover: true,
                           isCollectionCover: index === 0,
                           hidePlacementSelect: true,
+                          enableFocalEditor: true,
+                          previewAspectClass: getCollectionDialogGridAspectClass(group.assets.length),
                         }),
                       )}
                     </div>
@@ -1349,11 +1645,23 @@ export const InstagramPanel = () => {
             ) : (
               <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {assetsTab === 'highlights' &&
-                highlightAssets.map((asset) => renderAssetCard(asset, highlightAssets, true))}
+                highlightAssets.map((asset) =>
+                  renderAssetCard(asset, highlightAssets, true, {
+                    previewAspectClass: 'aspect-[4/3]',
+                  }),
+                )}
               {assetsTab === 'videos' &&
-                videoAssets.map((asset) => renderAssetCard(asset, videoAssets, true))}
+                videoAssets.map((asset) =>
+                  renderAssetCard(asset, videoAssets, true, {
+                    previewAspectClass: 'aspect-[4/3]',
+                  }),
+                )}
               {assetsTab === 'unassigned' &&
-                unassignedAssets.map((asset) => renderAssetCard(asset, unassignedAssets, false))}
+                unassignedAssets.map((asset) =>
+                  renderAssetCard(asset, unassignedAssets, false, {
+                    previewAspectClass: 'aspect-[4/3]',
+                  }),
+                )}
               </div>
             )}
 

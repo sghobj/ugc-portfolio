@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Clapperboard, Eye, EyeOff, Loader2, MoveHorizontal, Play, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -165,6 +165,8 @@ type StoryMedia = {
     mime: string;
     categories: string[];
     track: string;
+    focalPointX?: number;
+    focalPointY?: number;
     width?: number;
     height?: number;
 };
@@ -300,6 +302,20 @@ const getAspectRatio = (width?: number, height?: number): number | null => {
     return width / height;
 };
 
+const clampFocalPoint = (value?: number): number => {
+    if (typeof value !== "number" || Number.isNaN(value)) {
+        return 50;
+    }
+
+    return Math.max(0, Math.min(100, value));
+};
+
+const getMediaObjectPosition = (
+    item: Pick<StoryMedia, "focalPointX" | "focalPointY">,
+): CSSProperties => ({
+    objectPosition: `${clampFocalPoint(item.focalPointX)}% ${clampFocalPoint(item.focalPointY)}%`,
+});
+
 const getOptimizedImageUrl = (url: string, width: number, height?: number): string => {
     if (!isCloudinaryUrl(url)) {
         return url;
@@ -370,6 +386,8 @@ const toStoryMediaFromCms = (entry: UgcWorkMediaContent): StoryMedia => {
         mime: entry.mime,
         categories,
         track: resolveStoryTrack(categories, title, description, goal, style),
+        focalPointX: entry.focalPointX,
+        focalPointY: entry.focalPointY,
         width: entry.width,
         height: entry.height,
     };
@@ -839,18 +857,20 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                     autoPlay
                                                     playsInline
                                                     preload="metadata"
-                                                    className="absolute inset-0 h-full w-full object-cover object-center scale-[1.01] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.06]"
+                                                    style={getMediaObjectPosition(coverEntry)}
+                                                    className="absolute inset-0 h-full w-full object-cover scale-[1.04] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.08]"
                                                 />
                                             ) : (
                                                 <img
-                                                    src={getOptimizedImageUrl(coverPreviewUrl, IMAGE_WIDTHS[1], 800)}
-                                                    srcSet={getImageSrcSet(coverPreviewUrl, 800)}
+                                                    src={getOptimizedImageUrl(coverPreviewUrl, IMAGE_WIDTHS[1])}
+                                                    srcSet={getImageSrcSet(coverPreviewUrl)}
                                                     sizes={getImageSizes(coverPreviewUrl)}
                                                     alt={coverEntry.title}
                                                     loading="lazy"
                                                     decoding="async"
                                                     {...protectedImageProps}
-                                                    className="absolute inset-0 h-full w-full object-cover object-center scale-[1.01] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.06]"
+                                                    style={getMediaObjectPosition(coverEntry)}
+                                                    className="absolute inset-0 h-full w-full object-cover scale-[1.04] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.08]"
                                                 />
                                             )}
                                             {!canUseInlineVideoPreview(coverEntry) && <PhotoProtectionOverlay />}
@@ -974,7 +994,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                             playsInline
                                                             preload={shouldPrioritizePreview ? "auto" : "metadata"}
                                                             poster={highlightPreviewUrl}
-                                                            className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                            style={getMediaObjectPosition(item)}
+                                                            className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
                                                         />
                                                     ) : (
                                                         <img
@@ -993,7 +1014,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                             decoding="async"
                                                             fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
                                                             {...protectedImageProps}
-                                                            className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                            style={getMediaObjectPosition(item)}
+                                                            className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
                                                         />
                                                     )}
                                                     {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
@@ -1108,7 +1130,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                                 playsInline
                                                                 preload={shouldPrioritizePreview ? "auto" : "metadata"}
                                                                 poster={videoPreviewUrl}
-                                                                className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                                style={getMediaObjectPosition(video)}
+                                                                className="h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
                                                             />
                                                         ) : (
                                                             <img
@@ -1129,7 +1152,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                                 decoding="async"
                                                                 fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
                                                                 {...protectedImageProps}
-                                                                className="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                                                                style={getMediaObjectPosition(video)}
+                                                                className="h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
                                                             />
                                                         )}
                                                         {!canUseInlineVideoPreview(video) && <PhotoProtectionOverlay />}
@@ -1245,18 +1269,17 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                         autoPlay
                                                         playsInline
                                                         preload="metadata"
-                                                        className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover/entry:scale-[1.05]"
+                                                        style={getMediaObjectPosition(entry)}
+                                                        className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover/entry:scale-[1.08]"
                                                     />
                                                 ) : (
                                                     <img
                                                         src={getOptimizedImageUrl(
                                                             previewUrl,
                                                             IMAGE_WIDTHS[1],
-                                                            520,
                                                         )}
                                                         srcSet={getImageSrcSet(
                                                             previewUrl,
-                                                            520,
                                                         )}
                                                         sizes={getImageSizes(
                                                             previewUrl,
@@ -1265,7 +1288,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                         loading="lazy"
                                                         decoding="async"
                                                         {...protectedImageProps}
-                                                        className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 group-hover/entry:scale-[1.05]"
+                                                        style={getMediaObjectPosition(entry)}
+                                                        className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover/entry:scale-[1.08]"
                                                     />
                                                 )}
                                                 {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}

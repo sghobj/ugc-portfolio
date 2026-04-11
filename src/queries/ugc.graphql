@@ -44,6 +44,8 @@ query Ugc {
                     embedUrl
                     playbackUrl
                     thumbnailUrl
+                    focalPointX
+                    focalPointY
                 }
             }
         }
@@ -76,6 +78,8 @@ query Ugc {
                     embedUrl
                     playbackUrl
                     thumbnailUrl
+                    focalPointX
+                    focalPointY
                 }
             }
         }
@@ -100,6 +104,8 @@ query Ugc {
                 embedUrl
                 playbackUrl
                 thumbnailUrl
+                focalPointX
+                focalPointY
             }
         }
         videos {
@@ -123,6 +129,8 @@ query Ugc {
                 embedUrl
                 playbackUrl
                 thumbnailUrl
+                focalPointX
+                focalPointY
             }
         }
     }
