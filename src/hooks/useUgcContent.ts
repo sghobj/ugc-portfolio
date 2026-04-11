@@ -32,6 +32,8 @@ type UgcMediaAsset = {
   embedUrl?: string | null
   playbackUrl?: string | null
   thumbnailUrl?: string | null
+  focalPointX?: number | null
+  focalPointY?: number | null
 }
 
 type UgcTagEntry = {
@@ -162,6 +164,8 @@ export type UgcWorkMediaContent = {
   imageAlt: string
   width?: number
   height?: number
+  focalPointX?: number
+  focalPointY?: number
   mime: string
   categories: string[]
 }
@@ -275,6 +279,8 @@ const normalizeWorkMedia = (
           imageAlt: asString(entry?.media?.alternativeText) || title || 'Portfolio media',
           width: asNumber(entry?.media?.width),
           height: asNumber(entry?.media?.height),
+          focalPointX: asNumber(entry?.media?.focalPointX),
+          focalPointY: asNumber(entry?.media?.focalPointY),
           mime,
           categories:
             entry?.categories

@@ -26,6 +26,8 @@ export type UgcAdminAsset = {
   hook?: string | null
   goal?: string | null
   style?: string | null
+  focalPointX?: number | null
+  focalPointY?: number | null
   placement?: AssetPlacement
   sortOrder?: number
   secureUrl?: string | null
