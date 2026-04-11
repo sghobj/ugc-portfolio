@@ -131,6 +131,19 @@ const buildUploadScope = (stage: string, collectionName?: string): string | unde
 const isBunnyAsset = (asset: UgcAdminAsset): boolean =>
   (asset.storageProvider || '').toLowerCase() === 'bunny' || Boolean(asset.bunny?.videoId)
 
+const sortAssetsBySortOrder = (rows: UgcAdminAsset[]): UgcAdminAsset[] => {
+  return [...rows].sort((a, b) => {
+    const orderA = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER
+    const orderB = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER
+
+    if (orderA !== orderB) {
+      return orderA - orderB
+    }
+
+    return a.id - b.id
+  })
+}
+
 export const InstagramPanel = () => {
   const navigate = useNavigate()
   const [token, setToken] = useState<string | null>(null)
@@ -163,20 +176,44 @@ export const InstagramPanel = () => {
   const maxUploadMb = useMemo(() => config?.maxUploadMb ?? 1000, [config?.maxUploadMb])
 
   const highlightAssets = useMemo(
-    () => assets.filter((a) => a.placement === 'highlight').sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    () => sortAssetsBySortOrder(assets.filter((a) => a.placement === 'highlight')),
     [assets],
   )
   const videoAssets = useMemo(
-    () => assets.filter((a) => a.placement === 'video').sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    () => sortAssetsBySortOrder(assets.filter((a) => a.placement === 'video')),
     [assets],
   )
   const collectionAssets = useMemo(
-    () => assets.filter((a) => !a.placement && a.collection),
+    () =>
+      sortAssetsBySortOrder(assets.filter((a) => !a.placement && a.collection)).sort((a, b) => {
+        const collectionNameA = (a.collection?.name || '').toLowerCase()
+        const collectionNameB = (b.collection?.name || '').toLowerCase()
+
+        if (collectionNameA !== collectionNameB) {
+          return collectionNameA.localeCompare(collectionNameB)
+        }
+
+        return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
+      }),
     [assets],
   )
   const unassignedAssets = useMemo(
-    () => assets.filter((a) => !a.placement && !a.collection),
+    () => sortAssetsBySortOrder(assets.filter((a) => !a.placement && !a.collection)),
     [assets],
+  )
+  const collectionAssetGroups = useMemo(
+    () =>
+      collections
+        .map((collection) => ({
+          collection,
+          assets: sortAssetsBySortOrder(
+            assets.filter(
+              (asset) => !asset.placement && asset.collection && asset.collection.id === collection.id,
+            ),
+          ),
+        }))
+        .filter((group) => group.assets.length > 0),
+    [assets, collections],
   )
   const pendingTestimonials = useMemo(
     () =>
@@ -612,41 +649,56 @@ export const InstagramPanel = () => {
     }
   }
 
-  const handleMoveUp = async (asset: UgcAdminAsset, list: UgcAdminAsset[]): Promise<void> => {
+  const handlePersistOrder = async (orderedAssets: UgcAdminAsset[]): Promise<void> => {
     if (!token) return
+    const items = orderedAssets.map((asset, index) => ({ id: asset.id, sortOrder: index }))
+
+    setError(null)
+    setMessage(null)
+
+    try {
+      await reorderUgcAdminAssets(token, items)
+      await loadData(token)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder assets.')
+    }
+  }
+
+  const handleMoveUp = async (asset: UgcAdminAsset, list: UgcAdminAsset[]): Promise<void> => {
     const index = list.findIndex((a) => a.id === asset.id)
     if (index <= 0) return
     const reordered = [...list]
     ;[reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]]
-    const items = reordered.map((a, i) => ({ id: a.id, sortOrder: i }))
-    setError(null)
-    setMessage(null)
-    try {
-      await reorderUgcAdminAssets(token, items)
-      await loadData(token)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder assets.')
-    }
+    await handlePersistOrder(reordered)
   }
 
   const handleMoveDown = async (asset: UgcAdminAsset, list: UgcAdminAsset[]): Promise<void> => {
-    if (!token) return
     const index = list.findIndex((a) => a.id === asset.id)
     if (index < 0 || index >= list.length - 1) return
     const reordered = [...list]
     ;[reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]]
-    const items = reordered.map((a, i) => ({ id: a.id, sortOrder: i }))
-    setError(null)
-    setMessage(null)
-    try {
-      await reorderUgcAdminAssets(token, items)
-      await loadData(token)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder assets.')
-    }
+    await handlePersistOrder(reordered)
   }
 
-  const renderAssetCard = (asset: UgcAdminAsset, list: UgcAdminAsset[], showReorder: boolean) => {
+  const handleSetAsCollectionCover = async (asset: UgcAdminAsset, list: UgcAdminAsset[]): Promise<void> => {
+    const index = list.findIndex((a) => a.id === asset.id)
+    if (index <= 0) return
+
+    const reordered = [asset, ...list.filter((item) => item.id !== asset.id)]
+    await handlePersistOrder(reordered)
+    setMessage(`"${asset.title}" is now the collection cover.`)
+  }
+
+  const renderAssetCard = (
+    asset: UgcAdminAsset,
+    list: UgcAdminAsset[],
+    showReorder: boolean,
+    options?: {
+      allowSetAsCover?: boolean
+      isCollectionCover?: boolean
+      hidePlacementSelect?: boolean
+    },
+  ) => {
     const bunnyAsset = isBunnyAsset(asset)
     const bunnyEmbedUrl = asset.bunny?.embedUrl || asset.secureUrl || ''
     const cloudinaryUrl = asset.cloudinary?.secureUrl || asset.secureUrl || ''
@@ -688,25 +740,43 @@ export const InstagramPanel = () => {
               : 'None'}
           </p>
           <div className="space-y-2 pt-1">
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Placement</label>
-              <select
-                value={asset.placement ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value
-                  void handleUpdatePlacement(asset, val === 'highlight' || val === 'video' ? val : null)
-                }}
-                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none transition focus:border-primary"
-              >
-                <option value="">Unassigned</option>
-                <option value="highlight">Highlight</option>
-                <option value="video">Cinematic Video</option>
-              </select>
-            </div>
+            {!options?.hidePlacementSelect ? (
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Placement</label>
+                <select
+                  value={asset.placement ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    void handleUpdatePlacement(asset, val === 'highlight' || val === 'video' ? val : null)
+                  }}
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none transition focus:border-primary"
+                >
+                  <option value="">Unassigned</option>
+                  <option value="highlight">Highlight</option>
+                  <option value="video">Cinematic Video</option>
+                </select>
+              </div>
+            ) : null}
+            {options?.allowSetAsCover ? (
+              <div className="flex items-center justify-between rounded border border-border bg-card px-2.5 py-1.5">
+                <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {options.isCollectionCover ? 'Current cover' : 'Not cover'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleSetAsCollectionCover(asset, list)}
+                  disabled={Boolean(options.isCollectionCover)}
+                  className="inline-flex h-7 items-center justify-center rounded border border-border px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground transition hover:bg-muted disabled:opacity-40"
+                >
+                  Set as Cover
+                </button>
+              </div>
+            ) : null}
             <div className="flex items-center gap-2">
               {showReorder ? (
                 <>
                   <button
+                    type="button"
                     onClick={() => void handleMoveUp(asset, list)}
                     disabled={list.indexOf(asset) === 0}
                     className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-xs text-foreground transition hover:bg-muted disabled:opacity-30"
@@ -715,6 +785,7 @@ export const InstagramPanel = () => {
                     &uarr;
                   </button>
                   <button
+                    type="button"
                     onClick={() => void handleMoveDown(asset, list)}
                     disabled={list.indexOf(asset) === list.length - 1}
                     className="inline-flex h-7 w-7 items-center justify-center rounded border border-border text-xs text-foreground transition hover:bg-muted disabled:opacity-30"
@@ -725,6 +796,7 @@ export const InstagramPanel = () => {
                 </>
               ) : null}
               <button
+                type="button"
                 onClick={() => void handleDeleteAsset(asset)}
                 className="inline-flex h-7 items-center justify-center rounded-md border border-destructive/40 px-3 text-xs font-medium text-destructive transition hover:bg-destructive/10"
               >
@@ -1230,6 +1302,7 @@ export const InstagramPanel = () => {
                 ['unassigned', 'Unassigned', unassignedAssets.length],
               ] as const).map(([key, label, count]) => (
                 <button
+                  type="button"
                   key={key}
                   onClick={() => setAssetsTab(key)}
                   className={
@@ -1243,16 +1316,46 @@ export const InstagramPanel = () => {
               ))}
             </div>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {assetsTab === 'collections' && collectionAssetGroups.length > 0 ? (
+              <div className="mt-4 space-y-6">
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Dragless ordering: first photo in each collection is the portfolio overview cover.
+                </p>
+                {collectionAssetGroups.map((group) => (
+                  <article key={group.collection.id} className="rounded-md border border-border bg-background p-4">
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-border pb-2.5">
+                      <div>
+                        <h3 className="font-body text-sm font-semibold text-foreground">{group.collection.name}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {group.assets.length} {group.assets.length === 1 ? 'asset' : 'assets'}
+                        </p>
+                      </div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Cover = position 1
+                      </p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      {group.assets.map((asset, index) =>
+                        renderAssetCard(asset, group.assets, true, {
+                          allowSetAsCover: true,
+                          isCollectionCover: index === 0,
+                          hidePlacementSelect: true,
+                        }),
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {assetsTab === 'highlights' &&
                 highlightAssets.map((asset) => renderAssetCard(asset, highlightAssets, true))}
               {assetsTab === 'videos' &&
                 videoAssets.map((asset) => renderAssetCard(asset, videoAssets, true))}
-              {assetsTab === 'collections' &&
-                collectionAssets.map((asset) => renderAssetCard(asset, collectionAssets, false))}
               {assetsTab === 'unassigned' &&
                 unassignedAssets.map((asset) => renderAssetCard(asset, unassignedAssets, false))}
-            </div>
+              </div>
+            )}
 
             {assetsTab === 'highlights' && highlightAssets.length === 0 && (
               <p className="mt-4 text-sm text-muted-foreground">No assets assigned as highlights yet.</p>
