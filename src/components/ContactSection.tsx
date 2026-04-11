@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Instagram, Mail, ArrowUpRight } from "lucide-react";
+import { openServiceInquiryDialog } from "@/lib/serviceInquiryDialog";
 
 const ContactSection = () => {
     return (
@@ -22,13 +23,14 @@ const ContactSection = () => {
                             I&apos;d love to hear about your brand and vision. Reach out and let&apos;s create content
                             that makes your audience stop scrolling.
                         </p>
-                        <a
-                            href="mailto:sarah.ghobj@hotmail.com"
+                        <button
+                            type="button"
+                            onClick={() => openServiceInquiryDialog({ service: "General Inquiry" })}
                             className="inline-flex items-center gap-2 bg-accent px-8 py-3 font-body text-sm tracking-wider uppercase text-accent-foreground transition-opacity hover:opacity-80"
                         >
                             Get In Touch
                             <ArrowUpRight className="w-4 h-4" />
-                        </a>
+                        </button>
 
                         <div className="mt-10 flex items-center justify-center gap-6 border-t border-primary-foreground/10 pt-6">
                             <a

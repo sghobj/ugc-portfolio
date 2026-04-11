@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Camera, Video, Package, type LucideIcon } from "lucide-react";
 import type { UgcServicesContent } from "@/hooks/useUgcContent";
@@ -10,6 +10,10 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { submitServiceInquiry } from "@/lib/api/serviceInquiryApi";
+import {
+    OPEN_SERVICE_INQUIRY_EVENT,
+    type OpenServiceInquiryEventDetail,
+} from "@/lib/serviceInquiryDialog";
 
 type ServicesSectionProps = {
     myServices?: UgcServicesContent;
@@ -36,6 +40,7 @@ type ServiceInquiryFormState = {
 };
 
 const defaultIcons: LucideIcon[] = [Camera, Video, Package];
+const DEFAULT_SERVICE_OPTION = "General Inquiry";
 
 const createEmptyInquiryForm = (service = ""): ServiceInquiryFormState => ({
     service,
@@ -120,7 +125,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
     const [inquiryErrorMessage, setInquiryErrorMessage] = useState<string | null>(null);
     const [inquirySuccessMessage, setInquirySuccessMessage] = useState<string | null>(null);
     const [inquiryForm, setInquiryForm] = useState<ServiceInquiryFormState>(() =>
-        createEmptyInquiryForm(""),
+        createEmptyInquiryForm(DEFAULT_SERVICE_OPTION),
     );
 
     const cmsPackages = useMemo<ServiceCard[]>(() => {
@@ -148,25 +153,30 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
         );
     }, [myServices]);
 
-    const serviceOptions = useMemo(
-        () =>
-            Array.from(
-                new Set(
-                    cmsPackages
-                        .map((pkg, index) => (pkg.name?.trim() ? pkg.name.trim() : `Service ${index + 1}`))
-                        .filter((name) => name.length > 0),
-                ),
-            ),
-        [cmsPackages],
-    );
-
-    const openInquiryDialog = (serviceName?: string) => {
-        const resolvedService = serviceName?.trim() || serviceOptions[0] || "";
+    const openInquiryDialog = useCallback((serviceName?: string) => {
+        const resolvedService = serviceName?.trim() || DEFAULT_SERVICE_OPTION;
         setInquiryForm(createEmptyInquiryForm(resolvedService));
         setInquiryErrorMessage(null);
         setInquirySuccessMessage(null);
         setIsInquiryOpen(true);
-    };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const handleOpenInquiry = (event: Event) => {
+            const customEvent = event as CustomEvent<OpenServiceInquiryEventDetail | undefined>;
+            openInquiryDialog(customEvent.detail?.service);
+        };
+
+        window.addEventListener(OPEN_SERVICE_INQUIRY_EVENT, handleOpenInquiry as EventListener);
+
+        return () => {
+            window.removeEventListener(OPEN_SERVICE_INQUIRY_EVENT, handleOpenInquiry as EventListener);
+        };
+    }, [openInquiryDialog]);
 
     const handleInquirySubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
         event.preventDefault();
@@ -201,143 +211,117 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
         }
     };
 
-    if (cmsPackages.length === 0) {
-        return null;
-    }
-
     return (
-        <section id="services" className="py-16 lg:py-20">
-            <div className="container mx-auto px-6 lg:px-16">
-                {(sectionName || sectionTitle) && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.7 }}
-                        className="text-center mb-10"
-                    >
-                        {sectionName && (
-                            <p className="font-body text-sm tracking-[0.3em] uppercase text-accent mb-3">
-                                {sectionName}
-                            </p>
-                        )}
-                        {sectionTitle && (
-                            <h2 className="font-display text-4xl sm:text-5xl font-light text-foreground italic">
-                                {sectionTitle}
-                            </h2>
-                        )}
-                    </motion.div>
-                )}
-
-                <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3 lg:gap-5">
-                    {cmsPackages.map((pkg, i) => (
-                        <motion.div
-                            key={pkg.id}
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.6, delay: i * 0.1 }}
-                            className={`flex h-full flex-col border p-5 transition-all duration-300 hover:-translate-y-1 lg:p-6 ${
-                                pkg.featured
-                                    ? "bg-foreground text-primary-foreground border-foreground"
-                                    : "bg-background border-border hover:border-accent"
-                            }`}
-                        >
-                            <pkg.icon className="w-6 h-6 mb-4 text-accent" strokeWidth={1.5} />
-                            {pkg.name && <h3 className="font-display text-2xl mb-2">{pkg.name}</h3>}
-                            <div className="flex-1">
-                                {pkg.description && (
-                                    <p
-                                        className={`font-body text-sm leading-relaxed mb-4 ${
-                                            pkg.featured
-                                                ? "text-primary-foreground/70"
-                                                : "text-muted-foreground"
-                                        }`}
-                                    >
-                                        {pkg.description}
+        <>
+            {cmsPackages.length > 0 && (
+                <section id="services" className="py-16 lg:py-20">
+                    <div className="container mx-auto px-6 lg:px-16">
+                        {(sectionName || sectionTitle) && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.7 }}
+                                className="text-center mb-10"
+                            >
+                                {sectionName && (
+                                    <p className="font-body text-sm tracking-[0.3em] uppercase text-accent mb-3">
+                                        {sectionName}
                                     </p>
                                 )}
-                                {pkg.includes.length > 0 && (
-                                    <ul className="space-y-1.5">
-                                        {pkg.includes.map((item) => (
-                                            <li
-                                                key={item}
-                                                className={`font-body text-sm flex items-center gap-2 ${
+                                {sectionTitle && (
+                                    <h2 className="font-display text-4xl sm:text-5xl font-light text-foreground italic">
+                                        {sectionTitle}
+                                    </h2>
+                                )}
+                            </motion.div>
+                        )}
+
+                        <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3 lg:gap-5">
+                            {cmsPackages.map((pkg, i) => (
+                                <motion.div
+                                    key={pkg.id}
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={{ duration: 0.6, delay: i * 0.1 }}
+                                    className={`flex h-full flex-col border p-5 transition-all duration-300 hover:-translate-y-1 lg:p-6 ${
+                                        pkg.featured
+                                            ? "bg-foreground text-primary-foreground border-foreground"
+                                            : "bg-background border-border hover:border-accent"
+                                    }`}
+                                >
+                                    <pkg.icon className="w-6 h-6 mb-4 text-accent" strokeWidth={1.5} />
+                                    {pkg.name && <h3 className="font-display text-2xl mb-2">{pkg.name}</h3>}
+                                    <div className="flex-1">
+                                        {pkg.description && (
+                                            <p
+                                                className={`font-body text-sm leading-relaxed mb-4 ${
                                                     pkg.featured
-                                                        ? "text-primary-foreground/80"
+                                                        ? "text-primary-foreground/70"
                                                         : "text-muted-foreground"
                                                 }`}
                                             >
-                                                <span className="w-1 h-1 rounded-full bg-accent flex-shrink-0" />
-                                                {item}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => openInquiryDialog(pkg.name)}
-                                className={`mt-6 inline-block self-start px-5 py-2.5 font-body text-sm uppercase tracking-wider transition-all ${
-                                    pkg.featured
-                                        ? "bg-accent text-accent-foreground hover:opacity-80"
-                                        : "border border-foreground text-foreground hover:bg-foreground hover:text-background"
-                                }`}
-                            >
-                                Let&apos;s Talk
-                            </button>
-                        </motion.div>
-                    ))}
-                </div>
+                                                {pkg.description}
+                                            </p>
+                                        )}
+                                        {pkg.includes.length > 0 && (
+                                            <ul className="space-y-1.5">
+                                                {pkg.includes.map((item) => (
+                                                    <li
+                                                        key={item}
+                                                        className={`font-body text-sm flex items-center gap-2 ${
+                                                            pkg.featured
+                                                                ? "text-primary-foreground/80"
+                                                                : "text-muted-foreground"
+                                                        }`}
+                                                    >
+                                                        <span className="w-1 h-1 rounded-full bg-accent flex-shrink-0" />
+                                                        {item}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => openInquiryDialog(pkg.name)}
+                                        className={`mt-6 inline-block self-start px-5 py-2.5 font-body text-sm uppercase tracking-wider transition-all ${
+                                            pkg.featured
+                                                ? "bg-accent text-accent-foreground hover:opacity-80"
+                                                : "border border-foreground text-foreground hover:bg-foreground hover:text-background"
+                                        }`}
+                                    >
+                                        Let&apos;s Talk
+                                    </button>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
 
-                <Dialog
-                    open={isInquiryOpen}
-                    onOpenChange={(open) => {
-                        setIsInquiryOpen(open);
-                        if (!open) {
-                            setInquiryErrorMessage(null);
-                            setInquirySuccessMessage(null);
-                        }
-                    }}
-                >
-                    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
-                        <DialogHeader>
-                            <DialogTitle className="font-display text-3xl font-light italic">
-                                Let&apos;s Talk
-                            </DialogTitle>
-                            <DialogDescription className="font-body text-sm leading-relaxed text-muted-foreground">
-                                Share your project details and I&apos;ll reply directly by email.
-                            </DialogDescription>
-                        </DialogHeader>
+            <Dialog
+                open={isInquiryOpen}
+                onOpenChange={(open) => {
+                    setIsInquiryOpen(open);
+                    if (!open) {
+                        setInquiryErrorMessage(null);
+                        setInquirySuccessMessage(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
+                    <DialogHeader>
+                        <DialogTitle className="font-display text-3xl font-light italic">
+                            Let&apos;s Talk
+                        </DialogTitle>
+                        <DialogDescription className="font-body text-sm leading-relaxed text-muted-foreground">
+                            Share your project details and I&apos;ll reply directly by email.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                        <form className="space-y-4" onSubmit={(event) => void handleInquirySubmit(event)}>
-                            <div className="space-y-2">
-                                <label
-                                    className="font-body text-xs uppercase tracking-[0.16em] text-muted-foreground"
-                                    htmlFor="service"
-                                >
-                                    Service
-                                </label>
-                                <select
-                                    id="service"
-                                    value={inquiryForm.service}
-                                    onChange={(event) =>
-                                        setInquiryForm((current) => ({
-                                            ...current,
-                                            service: event.target.value,
-                                        }))
-                                    }
-                                    required
-                                    className="h-11 w-full rounded-none border border-input bg-background px-3 font-body text-sm text-foreground outline-none transition focus:border-primary"
-                                >
-                                    {serviceOptions.map((serviceOption) => (
-                                        <option key={serviceOption} value={serviceOption}>
-                                            {serviceOption}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
+                    <form className="space-y-4" onSubmit={(event) => void handleInquirySubmit(event)}>
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <label
@@ -499,23 +483,22 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                             >
                                 {isSubmittingInquiry ? "Sending..." : "Send Inquiry"}
                             </button>
-                        </form>
+                    </form>
 
-                        {inquirySuccessMessage ? (
-                            <p className="mt-1 border border-emerald-200 bg-emerald-50 px-3 py-2 font-body text-sm text-emerald-800">
-                                {inquirySuccessMessage}
-                            </p>
-                        ) : null}
+                    {inquirySuccessMessage ? (
+                        <p className="mt-1 border border-emerald-200 bg-emerald-50 px-3 py-2 font-body text-sm text-emerald-800">
+                            {inquirySuccessMessage}
+                        </p>
+                    ) : null}
 
-                        {inquiryErrorMessage ? (
-                            <p className="mt-1 border border-destructive/30 bg-destructive/10 px-3 py-2 font-body text-sm text-destructive">
-                                {inquiryErrorMessage}
-                            </p>
-                        ) : null}
-                    </DialogContent>
-                </Dialog>
-            </div>
-        </section>
+                    {inquiryErrorMessage ? (
+                        <p className="mt-1 border border-destructive/30 bg-destructive/10 px-3 py-2 font-body text-sm text-destructive">
+                            {inquiryErrorMessage}
+                        </p>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
 
