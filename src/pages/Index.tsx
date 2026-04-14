@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import CinematicVideoSection from "@/components/CinematicVideoSection";
 import ContactSection from "@/components/ContactSection";
-import ServicesSection from "@/components/ServiceSection.tsx";
+// import ServicesSection from "@/components/ServiceSection.tsx";
 import { DataStateNotice } from "@/components/DataStateNotice";
 import { useUgcContent } from "@/hooks/useUgcContent";
 import PortfolioShowcase from "@/components/PortfolioShowcase";
@@ -97,7 +97,8 @@ const Index = () => {
                     <CinematicVideoSection myWork={content.myWork} />
                     {/*<PortfolioSection myWork={content.myWork} />*/}
                     <PortfolioShowcase myWork={content.myWork} showcase={content.showcase} />
-                    <ServicesSection myServices={content.myServices} />
+                    {/* Temporarily hidden services section */}
+                    {/* <ServicesSection myServices={content.myServices} /> */}
                     {hasTestimonials ? (
                         <TestimonialsSection
                             testimonials={testimonials}
