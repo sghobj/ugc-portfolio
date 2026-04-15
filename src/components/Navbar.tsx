@@ -10,7 +10,7 @@ const Navbar = ({ showTestimonials = false }: NavbarProps) => {
     const [open, setOpen] = useState(false);
     const navLinks = [
         { label: "Work", href: "/#portfolio" },
-        // { label: "Services", href: "/#services" }, // Temporarily hidden
+        { label: "Services", href: "/#services" },
         ...(showTestimonials ? [{ label: "Testimonials", href: "/#testimonials" }] : []),
         { label: "Contact", href: "/#contact" },
     ];
