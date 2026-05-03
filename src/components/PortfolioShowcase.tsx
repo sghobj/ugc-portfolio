@@ -236,6 +236,18 @@ const isVideoMedia = (item: Pick<StoryMedia, "kind" | "mediaUrl" | "mime">): boo
     return isVideoAsset(item.mediaUrl, item.mime);
 };
 
+export const selectShowcaseVideos = <T extends Pick<StoryMedia, "kind" | "mediaUrl" | "mime">>(
+    sourceMedia: T[],
+    hasSeparatedShowcase: boolean,
+    separatedVideos: T[],
+): T[] => {
+    if (hasSeparatedShowcase) {
+        return separatedVideos;
+    }
+
+    return sourceMedia.filter((item) => isVideoMedia(item));
+};
+
 const isBunnyVideo = (item: Pick<StoryMedia, "kind" | "provider" | "embedUrl">): boolean =>
     item.kind === "video" && item.provider === "bunny" && item.embedUrl.trim().length > 0;
 
@@ -606,13 +618,10 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
         );
     }, [highlights, selectedHighlightCategory]);
 
-    const videos = useMemo(() => {
-        if (hasSeparatedShowcase) {
-            return separatedVideos.slice(0, 4);
-        }
-
-        return sourceMedia.filter((item) => isVideoMedia(item)).slice(0, 4);
-    }, [sourceMedia, hasSeparatedShowcase, separatedVideos]);
+    const videos = useMemo(
+        () => selectShowcaseVideos(sourceMedia, hasSeparatedShowcase, separatedVideos),
+        [sourceMedia, hasSeparatedShowcase, separatedVideos],
+    );
 
     const hasCollections = collections.length > 0;
     const hasHighlights = highlights.length > 0;
