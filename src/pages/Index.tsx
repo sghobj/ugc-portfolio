@@ -10,8 +10,8 @@ import { useUgcContent } from "@/hooks/useUgcContent";
 import PortfolioShowcase from "@/components/PortfolioShowcase";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import { useTestimonials } from "@/hooks/useTestimonials";
-import { brand } from "@/content/brand";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const HASH_SCROLL_RETRY_LIMIT = 30;
 const FIXED_HEADER_OFFSET = 72;
@@ -106,19 +106,9 @@ const Index = () => {
                         />
                     ) : null}
                     <ContactSection />
-                    <footer className="py-6">
-                        <div className="flex items-center justify-center gap-2 text-center font-body text-xs text-muted-foreground tracking-wider">
-                            <img
-                                src={brand.logoUrl}
-                                alt={brand.logoAlt}
-                                className="h-6 w-6 rounded-full border border-border/70 object-cover"
-                                loading="lazy"
-                            />
-                            <span>(c) 2026 Sarah Ghobj. All rights reserved.</span>
-                        </div>
-                    </footer>
                 </>
             )}
+            <SiteFooter />
             <ScrollToTopButton />
         </div>
     );

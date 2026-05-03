@@ -8,6 +8,7 @@ import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import FeedbackPage from "./pages/Feedback";
+import ImpressumPage from "./pages/Impressum";
 import InstagramLogin from "./pages/InstagramLogin";
 import { InstagramPanel } from "./pages/InstagramPanel";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
                             <Route path="/admin" element={<InstagramPanel />} />
                             <Route path="/instagram-panel" element={<Navigate to="/admin" replace />} />
                         </Route>
+                        <Route path="/impressum" element={<ImpressumPage />} />
                         <Route element={<ApiClientOutlet />}>
                             <Route path="/" element={<Index />} />
                             <Route path={env.feedbackFormPath} element={<FeedbackPage />} />
