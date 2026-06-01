@@ -1408,7 +1408,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                 }`}
                             >
                                 {canStepMedia && (
-                                    <div className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5 pr-14 md:pr-2">
+                                    <div className="mx-auto mb-2 flex w-44 max-w-[calc(100%-3.5rem)] items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5">
                                         <button
                                             type="button"
                                             onClick={goToPrevMedia}
