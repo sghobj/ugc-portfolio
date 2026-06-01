@@ -843,19 +843,14 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                             const coverPreviewUrl =
                                 getPreviewUrl(coverEntry) || coverEntry.thumbnailUrl || coverEntry.mediaUrl;
                             const coverIsVideo = isVideoMedia(coverEntry);
+                            const shouldPrioritizePreview = index < 2;
 
                             return (
                                 <CarouselItem
                                     key={collection.id}
                                     className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
                                 >
-                                <motion.article
-                                    initial={{ opacity: 0, y: 24 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true, margin: "-60px" }}
-                                    transition={{ duration: 0.65, delay: index * 0.06 }}
-                                    className="group h-full"
-                                >
+                                <article className="group h-full">
                                     <button
                                         type="button"
                                         onClick={() => setSelectedCollection(collection)}
@@ -870,7 +865,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                     loop
                                                     autoPlay
                                                     playsInline
-                                                    preload="metadata"
+                                                    preload={shouldPrioritizePreview ? "auto" : "metadata"}
+                                                    poster={coverPreviewUrl}
                                                     style={getMediaObjectPosition(coverEntry)}
                                                     className="absolute inset-0 h-full w-full object-cover scale-[1.04] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.08]"
                                                 />
@@ -880,8 +876,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                     srcSet={getImageSrcSet(coverPreviewUrl)}
                                                     sizes={getImageSizes(coverPreviewUrl)}
                                                     alt={coverEntry.title}
-                                                    loading="lazy"
+                                                    loading={shouldPrioritizePreview ? "eager" : "lazy"}
                                                     decoding="async"
+                                                    fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
                                                     {...protectedImageProps}
                                                     style={getMediaObjectPosition(coverEntry)}
                                                     className="absolute inset-0 h-full w-full object-cover scale-[1.04] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.08]"
@@ -925,7 +922,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         </div>
 
                                     </button>
-                                </motion.article>
+                                </article>
                                 </CarouselItem>
                             );
                         })}
