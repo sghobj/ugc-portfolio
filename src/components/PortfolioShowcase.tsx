@@ -1349,42 +1349,47 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                     {selectedMedia && (
                         <div className="min-h-full md:min-h-0 md:grid md:max-h-[86vh] md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
                             <div
-                                className={`flex w-full justify-center bg-background p-3 md:h-auto md:min-h-0 md:items-start md:overflow-auto md:p-1.5 ${
+                                className={`flex w-full flex-col bg-background p-3 md:h-auto md:min-h-0 md:items-stretch md:overflow-auto md:p-1.5 ${
                                     isMobileLandscapeMedia
                                         ? "items-start"
-                                        : "min-h-[calc(100dvh-6rem)] items-center"
+                                        : "min-h-[calc(100dvh-6rem)] items-stretch"
                                 }`}
                             >
+                                {canStepMedia && (
+                                    <div className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5 pr-14 md:pr-2">
+                                        <button
+                                            type="button"
+                                            onClick={goToPrevMedia}
+                                            disabled={!canStepMediaPrev}
+                                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-foreground disabled:opacity-40"
+                                            aria-label="Previous media"
+                                        >
+                                            <ArrowLeft className="h-4 w-4" />
+                                        </button>
+                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">
+                                            {mediaSequenceIndex + 1} / {mediaSequence.length}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={goToNextMedia}
+                                            disabled={!canStepMediaNext}
+                                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-foreground disabled:opacity-40"
+                                            aria-label="Next media"
+                                        >
+                                            <ArrowRight className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                )}
+                                <div
+                                    className={`flex w-full justify-center ${
+                                        isMobileLandscapeMedia ? "items-start" : "flex-1 items-center"
+                                    }`}
+                                >
                                 <div
                                     className={`inline-flex max-w-[calc(100vw-1rem)] flex-col items-stretch ${
                                         isMobileLandscapeMedia ? "w-full" : "w-fit"
                                     }`}
                                 >
-                                    {canStepMedia && (
-                                        <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2 py-1.5 pr-14 md:pr-2">
-                                            <button
-                                                type="button"
-                                                onClick={goToPrevMedia}
-                                                disabled={!canStepMediaPrev}
-                                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-foreground disabled:opacity-40"
-                                                aria-label="Previous media"
-                                            >
-                                                <ArrowLeft className="h-4 w-4" />
-                                            </button>
-                                            <p className="font-body text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">
-                                                {mediaSequenceIndex + 1} / {mediaSequence.length}
-                                            </p>
-                                            <button
-                                                type="button"
-                                                onClick={goToNextMedia}
-                                                disabled={!canStepMediaNext}
-                                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-foreground disabled:opacity-40"
-                                                aria-label="Next media"
-                                            >
-                                                <ArrowRight className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    )}
                                     {isVideoAsset(getVideoPlaybackUrl(selectedMedia), selectedMedia.mime) ? (
                                         <div className="relative">
                                             {!mediaLoaded && (
@@ -1536,6 +1541,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                             </div>
                                         </div>
                                     )}
+                                </div>
                                 </div>
                             </div>
 
