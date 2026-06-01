@@ -815,7 +815,10 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                 )}
 
                 {hasCollections && (
-                    <div>
+                    <Carousel
+                        opts={{ align: "start", slidesToScroll: "auto" }}
+                        className="w-full"
+                    >
                     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
                         <div>
                             <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-muted-foreground">
@@ -829,13 +832,12 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                             {collections.length > 1 && (
                                 <MobileSwipeHint className="text-muted-foreground" />
                             )}
-                            <p className="rounded-full border border-border bg-background/75 px-2.5 py-1 font-body text-[0.56rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                {collections.length} {collections.length === 1 ? "Collection" : "Collections"}
-                            </p>
+                            <CarouselProgress total={collections.length} variant="light" />
+                            <CarouselNav variant="light" />
                         </div>
                     </div>
 
-                    <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:gap-5 md:pb-0 xl:grid xl:grid-cols-3 xl:overflow-visible 2xl:grid-cols-4">
+                    <CarouselContent className="-ml-4">
                         {collections.map((collection, index) => {
                             const coverEntry = collection.entries[0];
                             const coverPreviewUrl =
@@ -843,18 +845,21 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                             const coverIsVideo = isVideoMedia(coverEntry);
 
                             return (
-                                <motion.article
+                                <CarouselItem
                                     key={collection.id}
+                                    className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
+                                >
+                                <motion.article
                                     initial={{ opacity: 0, y: 24 }}
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true, margin: "-60px" }}
                                     transition={{ duration: 0.65, delay: index * 0.06 }}
-                                    className="group min-w-[88%] snap-start md:min-w-[calc((100%-1.25rem)/2)] md:max-w-[calc((100%-1.25rem)/2)] xl:min-w-0 xl:max-w-none"
+                                    className="group h-full"
                                 >
                                     <button
                                         type="button"
                                         onClick={() => setSelectedCollection(collection)}
-                                        className="block w-full text-left"
+                                        className="block h-full w-full text-left"
                                         aria-label={`Open collection details for ${collection.title}`}
                                     >
                                         <div className="relative overflow-hidden bg-muted aspect-[4/5] sm:aspect-[3/4]">
@@ -921,10 +926,11 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
 
                                     </button>
                                 </motion.article>
+                                </CarouselItem>
                             );
                         })}
-                    </div>
-                </div>
+                    </CarouselContent>
+                </Carousel>
                 )}
 
                 {hasCollections && hasHighlights && (
