@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import FeedbackPage from "./pages/Feedback";
 import ImpressumPage from "./pages/Impressum";
+import PrivacyPage from "./pages/Privacy";
 import InstagramLogin from "./pages/InstagramLogin";
 import { InstagramPanel } from "./pages/InstagramPanel";
 import NotFound from "./pages/NotFound";
@@ -32,6 +33,7 @@ const App = () => (
                             <Route path="/instagram-panel" element={<Navigate to="/admin" replace />} />
                         </Route>
                         <Route path="/impressum" element={<ImpressumPage />} />
+                        <Route path="/datenschutz" element={<PrivacyPage />} />
                         <Route element={<ApiClientOutlet />}>
                             <Route path="/" element={<Index />} />
                             <Route path={env.feedbackFormPath} element={<FeedbackPage />} />

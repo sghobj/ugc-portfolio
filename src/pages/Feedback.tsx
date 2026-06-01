@@ -9,12 +9,14 @@ type FeedbackFormState = {
   name: string
   role: string
   quote: string
+  publicationConsent: boolean
 }
 
 const emptyFormState: FeedbackFormState = {
   name: '',
   role: '',
   quote: '',
+  publicationConsent: false,
 }
 
 const FeedbackPage = () => {
@@ -30,8 +32,18 @@ const FeedbackPage = () => {
     setSuccessMessage(null)
     setErrorMessage(null)
 
+    if (!form.publicationConsent) {
+      setErrorMessage('Please confirm publication consent before submitting your feedback.')
+      setIsSubmitting(false)
+      return
+    }
+
     try {
-      await submitTestimonial(form)
+      await submitTestimonial({
+        name: form.name,
+        role: form.role,
+        quote: form.quote,
+      })
       setForm(emptyFormState)
       setSuccessMessage('Thanks. Your feedback was submitted successfully.')
     } catch (submitError) {
@@ -122,6 +134,34 @@ const FeedbackPage = () => {
                   className="min-h-36 w-full rounded-none border border-input bg-background px-3 py-2 font-body text-sm text-foreground outline-none transition focus:border-primary"
                   placeholder="Share a few lines about your experience and results."
                 />
+              </div>
+
+              <div className="space-y-2 border border-border bg-background/60 p-3">
+                <label className="flex items-start gap-3 font-body text-sm leading-relaxed text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={form.publicationConsent}
+                    onChange={(event) =>
+                      setForm((previous) => ({
+                        ...previous,
+                        publicationConsent: event.target.checked,
+                      }))
+                    }
+                    required
+                    className="mt-1 h-4 w-4 shrink-0 accent-foreground"
+                  />
+                  <span>
+                    I agree that my name, optional role / brand, and testimonial may be published on
+                    this website after review. I can withdraw this consent at any time.
+                  </span>
+                </label>
+                <p className="font-body text-xs leading-relaxed text-muted-foreground">
+                  Details about data processing are available in the{' '}
+                  <a href="/datenschutz" className="text-foreground underline underline-offset-4 hover:text-accent">
+                    Privacy Notice
+                  </a>
+                  .
+                </p>
               </div>
 
               <button
