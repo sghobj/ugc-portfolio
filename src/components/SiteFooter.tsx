@@ -4,6 +4,7 @@ const footerLinks = [
     { href: "/", label: "Home" },
     { href: "/#contact", label: "Contact" },
     { href: "/impressum", label: "Impressum" },
+    { href: "/datenschutz", label: "Privacy" },
 ];
 
 export const SiteFooter = () => {
