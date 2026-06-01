@@ -48,6 +48,7 @@ type UgcWorkMediaEntry = {
   hook?: string | null
   goal?: string | null
   style?: string | null
+  sortOrder?: number | null
   categories?: UgcTagEntry[] | null
   media?: UgcMediaAsset | null
 }
@@ -241,6 +242,17 @@ const normalizeWorkMedia = (
 ): UgcWorkMediaContent[] => {
   return (
     entries
+      ?.slice()
+      .sort((a, b) => {
+        const orderA = asNumber(a?.sortOrder) ?? Number.MAX_SAFE_INTEGER
+        const orderB = asNumber(b?.sortOrder) ?? Number.MAX_SAFE_INTEGER
+
+        if (orderA !== orderB) {
+          return orderA - orderB
+        }
+
+        return 0
+      })
       ?.map((entry, index) => {
         const title = asString(entry?.title)
         const description = asString(entry?.description)
@@ -298,7 +310,7 @@ const normalizeWorkMedia = (
   )
 }
 
-const normalize = (ugc: UgcPayload | null | undefined): UgcContent => {
+export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcContent => {
   if (!ugc) {
     return emptyContent
   }
@@ -361,7 +373,7 @@ export const useUgcContent = (): UseUgcContentResult => {
     skip: !shouldQuery,
   })
 
-  const content = useMemo(() => normalize(data?.ugc), [data])
+  const content = useMemo(() => normalizeUgcContent(data?.ugc), [data])
 
   return {
     content,
