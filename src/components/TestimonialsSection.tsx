@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
 import { MessageSquareQuote } from 'lucide-react'
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel'
+import { CarouselNav, CarouselProgress, MobileSwipeHint } from '@/components/CarouselControls'
 import type { Testimonial } from '@/types/portfolio'
 
 type TestimonialsSectionProps = {
@@ -14,6 +16,51 @@ const getInitials = (name: string): string => {
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase() ?? '')
     .join('')
+}
+
+const TestimonialCard = ({ testimonial }: { testimonial: Testimonial }) => {
+  const isTranslated = testimonial.language !== 'en' && Boolean(testimonial.quoteEn)
+  const primaryQuote = isTranslated ? (testimonial.quoteEn as string) : testimonial.quote
+
+  return (
+    <article className="flex h-full flex-col border border-border bg-background p-5 lg:p-6">
+      <MessageSquareQuote className="mb-4 h-6 w-6 text-accent" strokeWidth={1.5} />
+      <p className="font-body text-sm leading-relaxed text-foreground">
+        &ldquo;{primaryQuote}&rdquo;
+      </p>
+      {isTranslated ? (
+        <p
+          lang={testimonial.language}
+          className="mt-3 font-body text-xs italic leading-relaxed text-muted-foreground"
+        >
+          <span className="not-italic uppercase tracking-[0.2em] text-[0.65rem]">
+            Original ({testimonial.language.toUpperCase()}):
+          </span>{' '}
+          &ldquo;{testimonial.quote}&rdquo;
+        </p>
+      ) : null}
+      <div className="mt-6 flex items-center gap-3 border-t border-border/70 pt-4 md:mt-auto">
+        {testimonial.avatar?.url ? (
+          <img
+            src={testimonial.avatar.url}
+            alt={testimonial.avatar.alt || testimonial.name}
+            className="h-10 w-10 rounded-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary font-body text-xs uppercase text-foreground">
+            {getInitials(testimonial.name)}
+          </div>
+        )}
+        <div>
+          <p className="font-body text-sm text-foreground">{testimonial.name}</p>
+          {testimonial.role ? (
+            <p className="font-body text-xs text-muted-foreground">{testimonial.role}</p>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  )
 }
 
 const TestimonialsSection = ({
@@ -48,64 +95,38 @@ const TestimonialsSection = ({
               aria-label="Loading testimonials"
             />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5">
-            {testimonials.map((testimonial, index) => (
-              <motion.article
-                key={testimonial.id}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-                className="h-full border border-border bg-background p-5 lg:p-6"
-              >
-                <MessageSquareQuote className="mb-4 h-6 w-6 text-accent" strokeWidth={1.5} />
-                {(() => {
-                  const isTranslated = testimonial.language !== 'en' && Boolean(testimonial.quoteEn)
-                  const primaryQuote = isTranslated ? (testimonial.quoteEn as string) : testimonial.quote
+        ) : testimonials.length === 0 ? null : (
+          <Carousel
+            opts={{ align: 'start', slidesToScroll: 'auto' }}
+            className="w-full"
+          >
+            {testimonials.length > 1 && (
+              <div className="mb-6 flex items-center justify-end gap-2">
+                <MobileSwipeHint className="text-muted-foreground" />
+                <CarouselProgress total={testimonials.length} variant="light" />
+                <CarouselNav variant="light" />
+              </div>
+            )}
 
-                  return (
-                    <>
-                      <p className="font-body text-sm leading-relaxed text-foreground">
-                        &ldquo;{primaryQuote}&rdquo;
-                      </p>
-                      {isTranslated ? (
-                        <p
-                          lang={testimonial.language}
-                          className="mt-3 font-body text-xs italic leading-relaxed text-muted-foreground"
-                        >
-                          <span className="not-italic uppercase tracking-[0.2em] text-[0.65rem]">
-                            Original ({testimonial.language.toUpperCase()}):
-                          </span>{' '}
-                          &ldquo;{testimonial.quote}&rdquo;
-                        </p>
-                      ) : null}
-                    </>
-                  )
-                })()}
-                <div className="mt-6 flex items-center gap-3 border-t border-border/70 pt-4">
-                  {testimonial.avatar?.url ? (
-                    <img
-                      src={testimonial.avatar.url}
-                      alt={testimonial.avatar.alt || testimonial.name}
-                      className="h-10 w-10 rounded-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary font-body text-xs uppercase text-foreground">
-                      {getInitials(testimonial.name)}
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-body text-sm text-foreground">{testimonial.name}</p>
-                    {testimonial.role ? (
-                      <p className="font-body text-xs text-muted-foreground">{testimonial.role}</p>
-                    ) : null}
-                  </div>
-                </div>
-              </motion.article>
-            ))}
-          </div>
+            <CarouselContent className="-ml-4">
+              {testimonials.map((testimonial, index) => (
+                <CarouselItem
+                  key={testimonial.id}
+                  className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 24 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: index * 0.08 }}
+                    className="h-full"
+                  >
+                    <TestimonialCard testimonial={testimonial} />
+                  </motion.div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
         )}
 
         {error ? <p className="mt-3 font-body text-xs text-muted-foreground">{error}</p> : null}
