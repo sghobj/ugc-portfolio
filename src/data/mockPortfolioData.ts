@@ -224,6 +224,7 @@ export const mockPortfolioData: PortfolioData = {
       role: 'Marketing Lead, Harbor Stay Collection',
       quote:
         'Clear process, quick turnaround, and content that made our property feel premium and approachable.',
+      language: 'en',
     },
     {
       id: 'testimonial-2',
@@ -231,6 +232,7 @@ export const mockPortfolioData: PortfolioData = {
       role: 'Founder, Trailframe Travel Co.',
       quote:
         'Great eye for destination storytelling. The visuals felt authentic and campaign-ready.',
+      language: 'en',
     },
   ],
 }

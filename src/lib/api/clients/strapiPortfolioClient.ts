@@ -9,6 +9,7 @@ import type {
   PortfolioItemKind,
   Service,
   Testimonial,
+  TestimonialLanguage,
 } from '@/types/portfolio'
 
 type StrapiRecord = Record<string, unknown> & {
@@ -84,6 +85,16 @@ const asPhotoCategory = (value: unknown): PhotoCategory | undefined => {
     default:
       return undefined
   }
+}
+
+const TESTIMONIAL_LANGUAGES: TestimonialLanguage[] = ['en', 'de', 'it', 'fr', 'es']
+
+const asTestimonialLanguage = (value: unknown): TestimonialLanguage => {
+  const normalized = asString(value).trim().toLowerCase()
+
+  return (TESTIMONIAL_LANGUAGES as string[]).includes(normalized)
+    ? (normalized as TestimonialLanguage)
+    : 'en'
 }
 
 const readField = (entity: StrapiRecord, field: string): unknown => {
@@ -226,6 +237,8 @@ const mapTestimonials = (payload: unknown): Testimonial[] => {
       name,
       role: asString(readField(entity, 'role'), ''),
       quote: asString(readField(entity, 'quote'), ''),
+      language: asTestimonialLanguage(readField(entity, 'language')),
+      quoteEn: asString(readField(entity, 'quoteEn'), '') || undefined,
       avatar: extractMedia(readField(entity, 'avatar'), name),
     }
   })

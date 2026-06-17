@@ -60,7 +60,29 @@ const TestimonialsSection = ({
                 className="h-full border border-border bg-background p-5 lg:p-6"
               >
                 <MessageSquareQuote className="mb-4 h-6 w-6 text-accent" strokeWidth={1.5} />
-                <p className="font-body text-sm leading-relaxed text-foreground">&ldquo;{testimonial.quote}&rdquo;</p>
+                {(() => {
+                  const isTranslated = testimonial.language !== 'en' && Boolean(testimonial.quoteEn)
+                  const primaryQuote = isTranslated ? (testimonial.quoteEn as string) : testimonial.quote
+
+                  return (
+                    <>
+                      <p className="font-body text-sm leading-relaxed text-foreground">
+                        &ldquo;{primaryQuote}&rdquo;
+                      </p>
+                      {isTranslated ? (
+                        <p
+                          lang={testimonial.language}
+                          className="mt-3 font-body text-xs italic leading-relaxed text-muted-foreground"
+                        >
+                          <span className="not-italic uppercase tracking-[0.2em] text-[0.65rem]">
+                            Original ({testimonial.language.toUpperCase()}):
+                          </span>{' '}
+                          &ldquo;{testimonial.quote}&rdquo;
+                        </p>
+                      ) : null}
+                    </>
+                  )
+                })()}
                 <div className="mt-6 flex items-center gap-3 border-t border-border/70 pt-4">
                   {testimonial.avatar?.url ? (
                     <img
