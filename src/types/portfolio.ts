@@ -35,11 +35,15 @@ export type Service = {
   deliverables: string[]
 }
 
+export type TestimonialLanguage = 'en' | 'de' | 'it' | 'fr' | 'es'
+
 export type Testimonial = {
   id: string
   name: string
   role: string
   quote: string
+  language: TestimonialLanguage
+  quoteEn?: string
   avatar?: MediaAsset
 }
 

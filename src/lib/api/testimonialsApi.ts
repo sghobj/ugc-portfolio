@@ -1,6 +1,15 @@
 import { env } from '@/config/env'
 import { resolveStrapiAssetUrl } from '@/lib/strapiAssetUrl'
-import type { MediaAsset, Testimonial } from '@/types/portfolio'
+import type { MediaAsset, Testimonial, TestimonialLanguage } from '@/types/portfolio'
+
+const SUPPORTED_LANGUAGES: TestimonialLanguage[] = ['en', 'de', 'it', 'fr', 'es']
+
+const normalizeLanguage = (value: unknown): TestimonialLanguage => {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  return (SUPPORTED_LANGUAGES as string[]).includes(raw)
+    ? (raw as TestimonialLanguage)
+    : 'en'
+}
 
 const LOCAL_STORAGE_FEEDBACK_KEY = 'ugc-feedback-submissions'
 
@@ -8,6 +17,16 @@ type FeedbackPayload = {
   name: string
   role: string
   quote: string
+}
+
+type TestimonialInput = {
+  id?: unknown
+  name?: unknown
+  role?: unknown
+  quote?: unknown
+  language?: unknown
+  quoteEn?: unknown
+  avatar?: MediaAsset
 }
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined => {
@@ -106,7 +125,7 @@ const extractAvatar = (value: unknown, fallbackAlt: string): MediaAsset | undefi
 }
 
 const normalizeTestimonial = (
-  input: Partial<Testimonial> & { id?: string; name?: string; quote?: string },
+  input: TestimonialInput,
   index: number,
 ): Testimonial | null => {
   const name = asString(input.name)
@@ -116,11 +135,15 @@ const normalizeTestimonial = (
     return null
   }
 
+  const quoteEn = asString(input.quoteEn)
+
   return {
     id: asStringId(input.id, `testimonial-${index + 1}`),
     name,
     role: asString(input.role),
     quote,
+    language: normalizeLanguage(input.language),
+    quoteEn: quoteEn || undefined,
     avatar: input.avatar,
   }
 }
@@ -135,6 +158,8 @@ const mapStrapiTestimonials = (payload: unknown): Testimonial[] => {
           name: asString(readField(entity, 'name')) || fallbackName,
           role: asString(readField(entity, 'role')),
           quote: asString(readField(entity, 'quote')),
+          language: readField(entity, 'language'),
+          quoteEn: readField(entity, 'quoteEn'),
           avatar: extractAvatar(readField(entity, 'avatar'), fallbackName),
         },
         index,
@@ -154,6 +179,8 @@ const mapCustomTestimonials = (payload: unknown): Testimonial[] => {
           name: asString(entity.name),
           role: asString(entity.role),
           quote: asString(entity.quote),
+          language: entity.language,
+          quoteEn: entity.quoteEn,
           avatar: undefined,
         },
         index,
@@ -195,6 +222,8 @@ const readStoredMockFeedback = (): Testimonial[] => {
             name: asString(record.name),
             role: asString(record.role),
             quote: asString(record.quote),
+            language: record.language,
+            quoteEn: record.quoteEn,
             avatar: undefined,
           },
           index,
@@ -375,6 +404,7 @@ export const submitTestimonial = async (input: FeedbackPayload): Promise<void> =
       name: payload.name,
       role: payload.role,
       quote: payload.quote,
+      language: 'en',
     })
     return
   }
