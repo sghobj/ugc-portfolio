@@ -286,7 +286,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                 >
                                     <pkg.icon className="w-6 h-6 mb-4 text-accent" strokeWidth={1.5} />
                                     {pkg.name && <h3 className="font-display text-2xl mb-2">{pkg.name}</h3>}
-                                    <div className="flex-1">
+                                    <div className="flex flex-1 flex-col">
                                         {pkg.description && (
                                             <p
                                                 className={`font-body text-sm leading-relaxed mb-4 ${
@@ -317,7 +317,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                         )}
                                         {pkg.addOns.length > 0 && (
                                             <div
-                                                className={`mt-4 border-t pt-3 ${
+                                                className={`mt-auto border-t pt-4 ${
                                                     pkg.featured ? "border-primary-foreground/15" : "border-border"
                                                 }`}
                                             >
