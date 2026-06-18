@@ -80,6 +80,9 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                                     src={heroImage}
                                     alt="Sarah Ghobj - UGC Creator and Photographer"
                                     {...protectedImageProps}
+                                    loading="eager"
+                                    fetchPriority="high"
+                                    decoding="async"
                                     className="w-full h-full object-cover"
                                 />
                                 <PhotoProtectionOverlay />

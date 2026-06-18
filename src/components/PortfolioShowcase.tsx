@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Clapperboard, Eye, EyeOff, Loader2, MoveHorizontal, Play, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, Clapperboard, Eye, EyeOff, Loader2, MoveHorizontal, Play, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -132,6 +132,33 @@ function MobileSwipeHint({ className }: { className?: string }) {
         </p>
     );
 }
+
+function CollaborationBadge({
+    className,
+    variant = "light",
+}: {
+    className?: string;
+    variant?: "light" | "dark";
+}) {
+    const tone =
+        variant === "light"
+            ? "bg-accent text-accent-foreground"
+            : "bg-accent text-accent-foreground";
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] shadow-sm backdrop-blur-sm",
+                tone,
+                className,
+            )}
+            title="Real client collaboration — paid stay, paid project, or unpaid shoot with a published client review"
+        >
+            <BadgeCheck className="h-3 w-3" strokeWidth={2} />
+            Collaboration
+        </span>
+    );
+}
 import type {
     UgcShowcaseCollectionContent,
     UgcShowcaseContent,
@@ -165,6 +192,7 @@ type StoryMedia = {
     mime: string;
     categories: string[];
     track: string;
+    isCollaboration: boolean;
     focalPointX?: number;
     focalPointY?: number;
     width?: number;
@@ -179,6 +207,7 @@ type StoryCollection = {
     highlights: string[];
     entries: StoryMedia[];
     track: string;
+    isCollaboration: boolean;
 };
 
 type Orientation = "portrait" | "landscape" | "square";
@@ -398,6 +427,7 @@ const toStoryMediaFromCms = (entry: UgcWorkMediaContent): StoryMedia => {
         mime: entry.mime,
         categories,
         track: resolveStoryTrack(categories, title, description, goal, style),
+        isCollaboration: entry.isCollaboration === true,
         focalPointX: entry.focalPointX,
         focalPointY: entry.focalPointY,
         width: entry.width,
@@ -425,6 +455,7 @@ const toStoryCollectionFromCms = (
         highlights: insights,
         entries,
         track,
+        isCollaboration: collection.isCollaboration === true,
     };
 };
 
@@ -449,6 +480,7 @@ const buildCollections = (mediaItems: StoryMedia[]): StoryCollection[] => {
                 highlights: [],
                 entries,
                 track,
+                isCollaboration: entries.some((entry) => entry.isCollaboration),
             };
         })
         .sort((a, b) => b.entries.length - a.entries.length);
@@ -827,6 +859,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                             <h3 className="font-display text-3xl font-light italic text-foreground sm:text-4xl">
                                 Narrative-First Campaign Sets
                             </h3>
+                            <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-muted-foreground">
+                                Full multi-asset shoots — photo and video bundled around a single stay.
+                            </p>
                         </div>
                         <div className="flex items-center gap-2">
                             {collections.length > 1 && (
@@ -896,9 +931,12 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                 </span>
                                             )}
 
-                                            <span className="absolute right-3 top-3 z-[2] inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground backdrop-blur-sm">
-                                                {collection.entries.length} assets
-                                            </span>
+                                            <div className="absolute right-3 top-3 z-[2] flex flex-col items-end gap-1.5">
+                                                {collection.isCollaboration && <CollaborationBadge variant="light" />}
+                                                <span className="inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground backdrop-blur-sm">
+                                                    {collection.entries.length} assets
+                                                </span>
+                                            </div>
 
                                             <div className="absolute inset-x-0 bottom-0 z-[2] p-4 sm:p-5">
                                                 {collection.title && (
@@ -947,6 +985,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                             <h3 className="font-display text-3xl font-light italic text-foreground sm:text-4xl">
                                 Signature Story Frames
                             </h3>
+                            <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-muted-foreground">
+                                Standalone hero frames that anchor a campaign or social post.
+                            </p>
                         </div>
                         <div className="flex items-center gap-2">
                             {filteredHighlights.length > 1 && (
@@ -1035,10 +1076,15 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                     {item.hook && (
                                                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[50%] bg-[linear-gradient(0deg,rgba(8,8,8,0.74)_0%,rgba(8,8,8,0.34)_48%,rgba(8,8,8,0)_100%)]" />
                                                     )}
-                                                    {item.track && (
-                                                        <span className="absolute left-3 top-3 bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
-                                                            {item.track}
-                                                        </span>
+                                                    {(item.track || item.isCollaboration) && (
+                                                        <div className="absolute left-3 top-3 flex flex-wrap items-start gap-1.5">
+                                                            {item.track && (
+                                                                <span className="bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
+                                                                    {item.track}
+                                                                </span>
+                                                            )}
+                                                            {item.isCollaboration && <CollaborationBadge variant="light" />}
+                                                        </div>
                                                     )}
                                                     <div className="absolute bottom-0 left-0 right-0 p-3">
                                                         {item.hook && (
@@ -1099,6 +1145,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     <h3 className="font-display text-3xl font-light italic text-primary-foreground sm:text-4xl">
                                         Cinematic Story Cuts
                                     </h3>
+                                    <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-primary-foreground/70">
+                                        Short-form motion built for Reels, ads, and brand sites.
+                                    </p>
                                 </div>
                                 {videos.length > 1 && (
                                     <MobileSwipeHint className="text-primary-foreground/70" />
@@ -1169,6 +1218,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                                             />
                                                         )}
                                                         {!canUseInlineVideoPreview(video) && <PhotoProtectionOverlay />}
+                                                        {video.isCollaboration && (
+                                                            <CollaborationBadge variant="light" className="absolute left-3 top-3" />
+                                                        )}
                                                         <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/50 bg-primary-foreground/10 text-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:bg-accent group-hover:text-accent-foreground">
                                                             <Play className="h-3.5 w-3.5" />
                                                         </span>

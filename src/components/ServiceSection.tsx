@@ -25,6 +25,7 @@ type ServiceCard = {
     name?: string;
     description?: string;
     includes: string[];
+    cta?: string;
     featured?: boolean;
 };
 
@@ -64,7 +65,7 @@ const stripMarkdownInline = (value: string): string => {
 
 const parseDetailsMarkdown = (
     markdown: string,
-): { name?: string; description?: string; includes: string[] } => {
+): { name?: string; description?: string; includes: string[]; cta?: string } => {
     const lines = markdown
         .split(/\r?\n/)
         .map((line) => line.trim())
@@ -90,8 +91,18 @@ const parseDetailsMarkdown = (
 
     const descriptionLines: string[] = [];
     const includes: string[] = [];
+    let cta: string | undefined;
 
     for (const rawLine of lines.slice(cursor)) {
+        const ctaMatch = rawLine.match(/^cta:\s*(.+)$/i);
+        if (ctaMatch?.[1]) {
+            const ctaText = stripMarkdownInline(ctaMatch[1]);
+            if (ctaText) {
+                cta = ctaText;
+            }
+            continue;
+        }
+
         const bulletMatch = rawLine.match(/^[-*+]\s+(.+)$/) ?? rawLine.match(/^\d+\.\s+(.+)$/);
 
         if (bulletMatch?.[1]) {
@@ -114,6 +125,7 @@ const parseDetailsMarkdown = (
         name,
         description: descriptionLines.join(" ").trim() || undefined,
         includes: includes.filter(Boolean),
+        cta,
     };
 };
 
@@ -141,6 +153,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                         name: details.name,
                         description: details.description,
                         includes: details.includes,
+                        cta: details.cta,
                         featured: index === 2,
                     };
                 })
@@ -292,7 +305,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                                 : "border border-foreground text-foreground hover:bg-foreground hover:text-background"
                                         }`}
                                     >
-                                        Let&apos;s Talk
+                                        {pkg.cta || "Let's Talk"}
                                     </button>
                                 </motion.div>
                             ))}

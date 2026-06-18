@@ -49,6 +49,7 @@ type UgcWorkMediaEntry = {
   goal?: string | null
   style?: string | null
   sortOrder?: number | null
+  isCollaboration?: boolean | null
   categories?: UgcTagEntry[] | null
   media?: UgcMediaAsset | null
 }
@@ -62,6 +63,7 @@ type UgcCollectionEntry = {
   name?: string | null
   description?: string | null
   story?: string | null
+  isCollaboration?: boolean | null
   insights?: UgcTagEntry[] | null
   media?: UgcWorkMediaEntry[] | null
 }
@@ -168,6 +170,7 @@ export type UgcWorkMediaContent = {
   focalPointX?: number
   focalPointY?: number
   mime: string
+  isCollaboration: boolean
   categories: string[]
 }
 
@@ -183,6 +186,7 @@ export type UgcShowcaseCollectionContent = {
   name: string
   description: string
   story: string
+  isCollaboration: boolean
   insights: string[]
   media: UgcWorkMediaContent[]
 }
@@ -294,6 +298,7 @@ const normalizeWorkMedia = (
           focalPointX: asNumber(entry?.media?.focalPointX),
           focalPointY: asNumber(entry?.media?.focalPointY),
           mime,
+          isCollaboration: entry?.isCollaboration === true,
           categories:
             entry?.categories
               ?.map((tag) => asString(tag?.name))
@@ -348,16 +353,25 @@ export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcCont
           const collectionId =
             collection?.id != null ? String(collection.id) : `collection-${index + 1}`
 
+          const collectionIsCollab = collection?.isCollaboration === true
+          const collectionMedia = normalizeWorkMedia(collection?.media, `${collectionId}-media`).map(
+            (entry) => ({
+              ...entry,
+              isCollaboration: entry.isCollaboration || collectionIsCollab,
+            }),
+          )
+
           return {
             id: collectionId,
             name: asString(collection?.name),
             description: asString(collection?.description),
             story: asString(collection?.story),
+            isCollaboration: collectionIsCollab,
             insights:
               collection?.insights
                 ?.map((insight) => asString(insight?.name))
                 .filter((insight) => insight.length > 0) ?? [],
-            media: normalizeWorkMedia(collection?.media, `${collectionId}-media`),
+            media: collectionMedia,
           }
         }) ?? [],
       highlights: normalizeWorkMedia(ugc.highlights, 'highlight'),
