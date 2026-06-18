@@ -55,6 +55,7 @@ query Ugc {
             name
             description
             story
+            isCollaboration
             insights {
                 name
             }
@@ -67,6 +68,7 @@ query Ugc {
                 goal
                 style
                 sortOrder
+                isCollaboration
                 categories {
                     name
                 }
@@ -94,6 +96,7 @@ query Ugc {
             goal
             style
             sortOrder
+            isCollaboration
             categories {
                 name
             }
@@ -120,6 +123,7 @@ query Ugc {
             goal
             style
             sortOrder
+            isCollaboration
             categories {
                 name
             }
