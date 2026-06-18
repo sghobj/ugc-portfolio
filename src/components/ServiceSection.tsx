@@ -25,6 +25,7 @@ type ServiceCard = {
     name?: string;
     description?: string;
     includes: string[];
+    addOns: string[];
     cta?: string;
     featured?: boolean;
 };
@@ -65,14 +66,20 @@ const stripMarkdownInline = (value: string): string => {
 
 const parseDetailsMarkdown = (
     markdown: string,
-): { name?: string; description?: string; includes: string[]; cta?: string } => {
+): {
+    name?: string;
+    description?: string;
+    includes: string[];
+    addOns: string[];
+    cta?: string;
+} => {
     const lines = markdown
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean);
 
     if (lines.length === 0) {
-        return { includes: [] };
+        return { includes: [], addOns: [] };
     }
 
     let cursor = 0;
@@ -91,6 +98,7 @@ const parseDetailsMarkdown = (
 
     const descriptionLines: string[] = [];
     const includes: string[] = [];
+    const addOns: string[] = [];
     let cta: string | undefined;
 
     for (const rawLine of lines.slice(cursor)) {
@@ -99,6 +107,15 @@ const parseDetailsMarkdown = (
             const ctaText = stripMarkdownInline(ctaMatch[1]);
             if (ctaText) {
                 cta = ctaText;
+            }
+            continue;
+        }
+
+        const addOnMatch = rawLine.match(/^add-?ons?:\s*(.+)$/i);
+        if (addOnMatch?.[1]) {
+            const addOnText = stripMarkdownInline(addOnMatch[1]);
+            if (addOnText) {
+                addOns.push(addOnText);
             }
             continue;
         }
@@ -125,6 +142,7 @@ const parseDetailsMarkdown = (
         name,
         description: descriptionLines.join(" ").trim() || undefined,
         includes: includes.filter(Boolean),
+        addOns: addOns.filter(Boolean),
         cta,
     };
 };
@@ -153,6 +171,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                         name: details.name,
                         description: details.description,
                         includes: details.includes,
+                        addOns: details.addOns,
                         cta: details.cta,
                         featured: index === 2,
                     };
@@ -161,7 +180,8 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                     (service) =>
                         Boolean(service.name) ||
                         Boolean(service.description) ||
-                        service.includes.length > 0,
+                        service.includes.length > 0 ||
+                        service.addOns.length > 0,
                 ) || []
         );
     }, [myServices]);
@@ -294,6 +314,36 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                                     </li>
                                                 ))}
                                             </ul>
+                                        )}
+                                        {pkg.addOns.length > 0 && (
+                                            <div
+                                                className={`mt-4 border-t pt-3 ${
+                                                    pkg.featured ? "border-primary-foreground/15" : "border-border"
+                                                }`}
+                                            >
+                                                <p
+                                                    className={`mb-2 font-body text-[0.62rem] uppercase tracking-[0.18em] ${
+                                                        pkg.featured ? "text-primary-foreground/60" : "text-muted-foreground/80"
+                                                    }`}
+                                                >
+                                                    Paid add-ons
+                                                </p>
+                                                <ul className="space-y-1">
+                                                    {pkg.addOns.map((item) => (
+                                                        <li
+                                                            key={item}
+                                                            className={`font-body text-xs leading-relaxed flex items-start gap-2 ${
+                                                                pkg.featured
+                                                                    ? "text-primary-foreground/70"
+                                                                    : "text-muted-foreground"
+                                                            }`}
+                                                        >
+                                                            <span className="mt-1.5 w-1 h-1 rounded-full bg-accent/70 flex-shrink-0" />
+                                                            {item}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         )}
                                     </div>
                                     <button
