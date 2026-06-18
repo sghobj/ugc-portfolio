@@ -316,8 +316,9 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                             </ul>
                                         )}
                                         {pkg.addOns.length > 0 && (
+                                            <div className="mt-auto pt-6">
                                             <div
-                                                className={`mt-auto border-t pt-4 ${
+                                                className={`border-t pt-5 ${
                                                     pkg.featured ? "border-primary-foreground/15" : "border-border"
                                                 }`}
                                             >
@@ -343,6 +344,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                                         </li>
                                                     ))}
                                                 </ul>
+                                            </div>
                                             </div>
                                         )}
                                     </div>
