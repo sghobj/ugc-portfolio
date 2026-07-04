@@ -58,12 +58,23 @@ type UgcWorkBlock = UgcTextBlock & {
   media?: UgcWorkMediaEntry[] | null
 }
 
+type UgcTestimonialEntry = {
+  name?: string | null
+  role?: string | null
+  quote?: string | null
+}
+
 type UgcCollectionEntry = {
   id?: string | number | null
   name?: string | null
   description?: string | null
   story?: string | null
   isCollaboration?: boolean | null
+  client?: string | null
+  clientLogo?: string | null
+  location?: string | null
+  deliverables?: string | null
+  testimonial?: UgcTestimonialEntry | null
   insights?: UgcTagEntry[] | null
   media?: UgcWorkMediaEntry[] | null
 }
@@ -181,12 +192,23 @@ export type UgcWorkContent = {
   media: UgcWorkMediaContent[]
 }
 
+export type UgcCaseStudyTestimonial = {
+  name: string
+  role: string
+  quote: string
+}
+
 export type UgcShowcaseCollectionContent = {
   id: string
   name: string
   description: string
   story: string
   isCollaboration: boolean
+  client: string
+  clientLogo: string
+  location: string
+  deliverables: string
+  testimonial: UgcCaseStudyTestimonial | null
   insights: string[]
   media: UgcWorkMediaContent[]
 }
@@ -361,12 +383,25 @@ export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcCont
             }),
           )
 
+          const testimonialQuote = asString(collection?.testimonial?.quote)
+
           return {
             id: collectionId,
             name: asString(collection?.name),
             description: asString(collection?.description),
             story: asString(collection?.story),
             isCollaboration: collectionIsCollab,
+            client: asString(collection?.client),
+            clientLogo: asString(collection?.clientLogo),
+            location: asString(collection?.location),
+            deliverables: asString(collection?.deliverables),
+            testimonial: testimonialQuote
+              ? {
+                  name: asString(collection?.testimonial?.name),
+                  role: asString(collection?.testimonial?.role),
+                  quote: testimonialQuote,
+                }
+              : null,
             insights:
               collection?.insights
                 ?.map((insight) => asString(insight?.name))

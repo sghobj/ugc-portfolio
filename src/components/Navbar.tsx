@@ -9,6 +9,7 @@ type NavbarProps = {
 const Navbar = ({ showTestimonials = false }: NavbarProps) => {
     const [open, setOpen] = useState(false);
     const navLinks = [
+        { label: "Clients", href: "/#brands" },
         { label: "Work", href: "/#portfolio" },
         { label: "Services", href: "/#services" },
         ...(showTestimonials ? [{ label: "Testimonials", href: "/#testimonials" }] : []),

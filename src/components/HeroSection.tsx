@@ -21,7 +21,7 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
     const lastName = lastNameParts.join(" ");
 
     return (
-        <section className="relative flex min-h-[88vh] items-center overflow-hidden pt-20 pb-12 lg:h-[calc(100dvh-4rem)] lg:min-h-0 lg:pt-20 lg:pb-10">
+        <section className="relative flex min-h-[78vh] items-center overflow-hidden pt-20 pb-12 lg:min-h-[82vh] lg:pt-20 lg:pb-10">
             <div className="container mx-auto px-6 lg:px-16">
                 <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
                     <motion.div
@@ -36,7 +36,7 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                             </p>
                         )}
                         {name && (
-                            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-light leading-[0.9] text-foreground mb-5">
+                            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-light leading-[0.95] text-foreground mb-5">
                                 {firstName}
                                 {lastName && (
                                     <>
@@ -87,8 +87,6 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                                 />
                                 <PhotoProtectionOverlay />
                             </div>
-                            <div className="absolute -bottom-4 -left-4 w-24 h-24 border border-accent opacity-40" />
-                            <div className="absolute -top-4 -right-4 w-16 h-16 bg-accent opacity-20" />
                         </div>
                     </motion.div>
                 </div>

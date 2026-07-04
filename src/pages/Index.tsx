@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-import CinematicVideoSection from "@/components/CinematicVideoSection";
+import BrandsSection from "@/components/BrandsSection";
+import VideoReels from "@/components/VideoReels";
 import ContactSection from "@/components/ContactSection";
 import ServicesSection from "@/components/ServiceSection.tsx";
 import { DataStateNotice } from "@/components/DataStateNotice";
@@ -94,7 +95,8 @@ const Index = () => {
             ) : (
                 <>
                     <HeroSection hero={content.hero} />
-                    <CinematicVideoSection myWork={content.myWork} />
+                    <BrandsSection />
+                    <VideoReels myWork={content.myWork} showcase={content.showcase} />
                     {/*<PortfolioSection myWork={content.myWork} />*/}
                     <PortfolioShowcase myWork={content.myWork} showcase={content.showcase} />
                     <ServicesSection myServices={content.myServices} />
