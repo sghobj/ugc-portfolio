@@ -3,14 +3,17 @@ import { Menu, X } from "lucide-react";
 import { brand } from "@/content/brand";
 
 type NavbarProps = {
+    showClients?: boolean;
     showTestimonials?: boolean;
 };
 
-const Navbar = ({ showTestimonials = false }: NavbarProps) => {
+const Navbar = ({ showClients = false, showTestimonials = false }: NavbarProps) => {
     const [open, setOpen] = useState(false);
     const navLinks = [
-        { label: "Clients", href: "/#brands" },
-        { label: "Work", href: "/#portfolio" },
+        ...(showClients ? [{ label: "Clients", href: "/#brands" }] : []),
+        { label: "Reels", href: "/#video-showcase" },
+        { label: "Collections", href: "/#collections" },
+        { label: "Photos", href: "/#photos" },
         { label: "Services", href: "/#services" },
         ...(showTestimonials ? [{ label: "Testimonials", href: "/#testimonials" }] : []),
         { label: "Contact", href: "/#contact" },
@@ -32,7 +35,7 @@ const Navbar = ({ showTestimonials = false }: NavbarProps) => {
                 </a>
 
                 {/* Desktop */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden md:flex items-center gap-6 lg:gap-8">
                     {navLinks.map((link) => (
                         <a
                             key={link.label}

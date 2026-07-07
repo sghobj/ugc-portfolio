@@ -58,6 +58,18 @@ const isHlsUrl = (url: string): boolean => /\.m3u8(\?|$)/i.test(url);
 const isVideoItem = (item: UgcWorkMediaContent): boolean =>
     item.kind === "video" || item.mime.toLowerCase().startsWith("video/");
 
+const isVerticalVideoItem = (item: UgcWorkMediaContent): boolean => {
+    if (!isVideoItem(item)) {
+        return false;
+    }
+
+    if (item.width && item.height && item.width > 0 && item.height > 0) {
+        return item.height >= item.width;
+    }
+
+    return true;
+};
+
 const preferredRank = (category: string): number => {
     const index = PREFERRED_ORDER.findIndex((entry) => entry.toLowerCase() === category.toLowerCase());
     return index === -1 ? PREFERRED_ORDER.length : index;
@@ -127,7 +139,7 @@ const collectReels = (myWork?: UgcWorkContent, showcase?: UgcShowcaseContent): R
     const seen = new Set<string>();
     const reels: ReelVideo[] = [];
     for (const item of sources) {
-        if (!isVideoItem(item)) {
+        if (!isVerticalVideoItem(item)) {
             continue;
         }
         const reel = toReel(item);
@@ -235,11 +247,14 @@ const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.6, delay: Math.min(index, 4) * 0.06 }}
-            className="w-[210px] sm:w-[224px] lg:w-[244px]"
+            className="w-[202px] shrink-0 snap-start sm:w-[218px] lg:w-[228px]"
         >
-            <div className="group relative">
-                <PhoneFrame showReelChrome={!playing}>
-                    {hasDirect ? (
+            <div className="group relative transition-transform duration-500 hover:-translate-y-1">
+                <PhoneFrame
+                    showReelChrome={!playing}
+                    className="shadow-[0_34px_78px_-28px_rgba(0,0,0,0.9)] ring-black/55"
+                >
+                    {hasDirect && playing ? (
                         <video
                             ref={videoRef}
                             src={isHls ? undefined : reel.playbackUrl}
@@ -252,6 +267,19 @@ const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
                             onTimeUpdate={onTimeUpdate}
                             onPlay={() => setPaused(false)}
                             onPause={() => setPaused(true)}
+                        />
+                    ) : hasDirect && reel.poster ? (
+                        <>
+                            <img src={reel.poster} alt={reel.title} loading="lazy" {...protectedImageProps} />
+                            <PhotoProtectionOverlay />
+                        </>
+                    ) : hasDirect ? (
+                        <video
+                            poster={reel.poster || undefined}
+                            playsInline
+                            muted
+                            preload="metadata"
+                            onContextMenu={(event) => event.preventDefault()}
                         />
                     ) : playing ? (
                         <iframe
@@ -350,14 +378,14 @@ const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
                 )}
             </div>
 
-            <div className="mt-4 text-center">
+            <div className="mt-4 min-h-[3.5rem] text-center">
                 {reel.title && (
-                    <h4 className="font-display text-lg font-light italic leading-tight text-primary-foreground">
+                    <h4 className="line-clamp-2 font-body text-[0.68rem] font-medium uppercase leading-snug tracking-[0.14em] text-[#fbf6ee]/92">
                         {reel.title}
                     </h4>
                 )}
                 {reel.subtitle && (
-                    <p className="mt-1 font-body text-[0.6rem] uppercase tracking-[0.18em] text-primary-foreground/55">
+                    <p className="mx-auto mt-1.5 line-clamp-2 max-w-[12rem] font-body text-[0.5rem] uppercase leading-relaxed tracking-[0.12em] text-[#d7c9ba]/68">
                         {reel.subtitle}
                     </p>
                 )}
@@ -374,46 +402,48 @@ const VideoReels = ({ myWork, showcase }: VideoReelsProps) => {
     }
 
     return (
-        <section id="video-showcase" className="relative overflow-hidden py-12 lg:py-14">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,hsl(var(--accent)/0.2),transparent_35%),radial-gradient(circle_at_90%_0%,hsl(var(--accent)/0.14),transparent_35%),linear-gradient(145deg,hsl(var(--foreground))_0%,hsl(var(--foreground)/0.96)_100%)]" />
-            <div className="absolute inset-0 opacity-10 [background-image:linear-gradient(to_right,hsl(var(--primary-foreground)/0.2)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary-foreground)/0.2)_1px,transparent_1px)] [background-size:52px_52px]" />
-
+        <section id="video-showcase" className="luxury-grid-dark relative overflow-hidden bg-[#2c2521] py-12 text-[#fbf6ee] lg:py-14">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(179,100,58,0.18),transparent_32%),radial-gradient(circle_at_88%_0%,rgba(251,246,238,0.08),transparent_28%),linear-gradient(180deg,rgba(255,248,240,0.04),transparent_30%,rgba(0,0,0,0.18))]" />
             <div className="container relative mx-auto px-6 lg:px-16">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.8 }}
-                    className="mx-auto mb-10 max-w-2xl text-center"
+                    className="mb-9 grid gap-4 border-b border-[#d7c9ba]/16 pb-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
                 >
-                    <p className="mb-3 font-body text-sm uppercase tracking-[0.22em] text-primary-foreground/70">
-                        Videography
-                    </p>
-                    <h2 className="font-display text-3xl font-light italic leading-tight text-primary-foreground sm:text-4xl">
-                        Cinematic Reels, Grouped by What I Shoot
-                    </h2>
-                    <p className="mx-auto mt-3 max-w-xl font-body text-sm leading-relaxed text-primary-foreground/75">
-                        The real Instagram edits — tap any frame to play it right here.
+                    <div>
+                        <p className="mb-2 font-body text-[0.62rem] uppercase tracking-[0.26em] text-[#d7c9ba]/75">
+                            Cinematic UGC
+                        </p>
+                        <h2 className="font-display text-3xl font-light italic leading-tight text-[#fbf6ee] sm:text-4xl">
+                            Vertical Reels
+                        </h2>
+                    </div>
+                    <p className="max-w-sm font-body text-sm leading-relaxed text-[#d7c9ba]/74 sm:text-right">
+                        Short-form edits built for hotel campaigns, social proof, and premium stay storytelling.
                     </p>
                 </motion.div>
 
-                <div className="space-y-14">
+                <div className="space-y-12">
                     {sections.map(([category, reels]) => (
                         <div key={category}>
-                            <div className="mb-6 flex items-center gap-4">
-                                <h3 className="font-body text-sm font-medium uppercase tracking-[0.28em] text-primary-foreground">
+                            <div className="mb-5 flex items-center gap-3">
+                                <h3 className="font-body text-[0.78rem] font-medium uppercase tracking-[0.22em] text-[#fbf6ee] sm:text-[0.84rem]">
                                     {category}
                                 </h3>
-                                <span className="h-px flex-1 bg-primary-foreground/20" />
-                                <span className="font-body text-[0.6rem] uppercase tracking-[0.18em] text-primary-foreground/50">
+                                <span className="h-px flex-1 bg-[#d7c9ba]/16" />
+                                <span className="rounded-full border border-[#d7c9ba]/18 px-2.5 py-1 font-body text-[0.55rem] uppercase tracking-[0.16em] text-[#d7c9ba]/70">
                                     {reels.length} {reels.length === 1 ? "reel" : "reels"}
                                 </span>
                             </div>
 
-                            <div className="flex flex-wrap justify-center gap-6 sm:gap-8 lg:gap-10">
-                                {reels.map((reel, index) => (
-                                    <VideoReel key={reel.id} reel={reel} index={index} />
-                                ))}
+                            <div className="-mx-6 overflow-x-auto px-6 pb-5 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                <div className="flex snap-x snap-mandatory gap-4 sm:gap-5 lg:justify-center lg:gap-6">
+                                    {reels.map((reel, index) => (
+                                        <VideoReel key={reel.id} reel={reel} index={index} />
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     ))}

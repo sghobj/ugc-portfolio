@@ -21,6 +21,7 @@ const Index = () => {
     const location = useLocation();
     const { content, isLoading, error } = useUgcContent();
     const { testimonials, isLoading: isTestimonialsLoading, error: testimonialsError } = useTestimonials();
+    const hasBrands = content.brands.length > 0;
     const hasTestimonials = testimonials.length > 0;
 
     useEffect(() => {
@@ -77,7 +78,7 @@ const Index = () => {
 
     return (
         <div id="home" className="bg-background text-foreground">
-            <Navbar showTestimonials={hasTestimonials} />
+            <Navbar showClients={hasBrands} showTestimonials={hasTestimonials} />
             {error && (
                 <DataStateNotice
                     tone="error"
@@ -95,7 +96,7 @@ const Index = () => {
             ) : (
                 <>
                     <HeroSection hero={content.hero} />
-                    <BrandsSection />
+                    <BrandsSection brands={content.brands} />
                     <VideoReels myWork={content.myWork} showcase={content.showcase} />
                     {/*<PortfolioSection myWork={content.myWork} />*/}
                     <PortfolioShowcase myWork={content.myWork} showcase={content.showcase} />

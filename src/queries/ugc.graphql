@@ -50,6 +50,16 @@ query Ugc {
                 }
             }
         }
+        brands {
+            id
+            name
+            logo
+            website
+            location
+            category
+            relatedCollectionSlug
+            relatedCollectionName
+        }
         collections {
             id
             name

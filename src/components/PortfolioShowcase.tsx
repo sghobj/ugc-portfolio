@@ -1,9 +1,17 @@
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, Clapperboard, Eye, EyeOff, Loader2, Lock, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Clapperboard, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+    Carousel,
+    CarouselContent,
+    CarouselItem,
+    CarouselNext,
+    CarouselPrevious,
+    type CarouselApi,
+} from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 
 function CollaborationBadge({
@@ -76,6 +84,7 @@ type StoryCollection = {
     id: string;
     title: string;
     subtitle: string;
+    description: string;
     story: string;
     highlights: string[];
     entries: StoryMedia[];
@@ -91,9 +100,6 @@ type StoryCollection = {
 type Orientation = "portrait" | "landscape" | "square";
 
 const IMAGE_WIDTHS = [640, 960, 1280];
-/** Small, fixed render width for the view-only photo grid so a screenshot can never exceed it. */
-const HIGHLIGHT_TILE_WIDTH = 400;
-
 /** Photo category sections shown first, in this order; anything else follows, uncategorized last. */
 const PHOTO_SECTION_ORDER = [
     "Highlights",
@@ -132,8 +138,6 @@ const choosePhotoCategory = (categories: string[]): string => {
 
     return best ?? cleaned[0];
 };
-const IMAGE_SIZES = "(max-width: 768px) 92vw, (max-width: 1280px) 46vw, 31vw";
-
 const slugify = (value: string): string => {
     return value
         .toLowerCase()
@@ -145,14 +149,6 @@ const trimOrEmpty = (value: string): string => value.trim();
 
 const dedupe = (values: string[]): string[] => {
     return Array.from(new Set(values.filter((value) => value.length > 0)));
-};
-
-const truncateText = (value: string, maxLength = 170): string => {
-    if (value.length <= maxLength) {
-        return value;
-    }
-
-    return `${value.slice(0, maxLength).trimEnd()}...`;
 };
 
 const isVideoAsset = (url: string, mime = ""): boolean => {
@@ -278,24 +274,6 @@ const getOptimizedImageUrl = (url: string, width: number, height?: number): stri
     });
 };
 
-const getImageSrcSet = (url: string, height?: number): string | undefined => {
-    if (!isCloudinaryUrl(url)) {
-        return undefined;
-    }
-
-    return IMAGE_WIDTHS
-        .map((width) => `${getOptimizedImageUrl(url, width, height)} ${width}w`)
-        .join(", ");
-};
-
-const getImageSizes = (url: string): string | undefined => {
-    if (!isCloudinaryUrl(url)) {
-        return undefined;
-    }
-
-    return IMAGE_SIZES;
-};
-
 const hasMediaSource = (
     entry: Pick<StoryMedia, "mediaUrl" | "previewUrl" | "embedUrl" | "playbackUrl" | "thumbnailUrl">,
 ): boolean =>
@@ -352,6 +330,7 @@ const toStoryCollectionFromCms = (
         .map((entry) => toStoryMediaFromCms(entry))
         .filter((entry) => hasMediaSource(entry));
     const title = trimOrEmpty(collection.name);
+    const description = trimOrEmpty(collection.description);
     const story = trimOrEmpty(collection.story);
     const track = entries[0]?.track ?? resolveStoryTrack([], title, story, "", "");
     const insights = collection.insights.map((item) => item.trim()).filter((item) => item.length > 0);
@@ -360,6 +339,7 @@ const toStoryCollectionFromCms = (
         id: collection.id.trim() || `${slugify(title || "collection")}-${index + 1}`,
         title,
         subtitle: `${entries.length} ${entries.length === 1 ? "asset" : "assets"} in this collection`,
+        description,
         story,
         highlights: insights,
         entries,
@@ -390,6 +370,7 @@ const buildCollections = (mediaItems: StoryMedia[]): StoryCollection[] => {
                 id: `${slugify(track || "collection")}-${index + 1}`,
                 title: track,
                 subtitle: `${entries.length} ${entries.length === 1 ? "asset" : "assets"} in this collection`,
+                description: "",
                 story,
                 highlights: [],
                 entries,
@@ -432,43 +413,13 @@ const markdownComponents = {
     ),
 };
 
-const getCollectionPreviewGridClass = (count: number): string => {
-    if (count <= 1) {
-        return "grid-cols-1";
-    }
-
-    if (count <= 4) {
-        return "grid-cols-2";
-    }
-
-    if (count <= 6) {
-        return "grid-cols-2 md:grid-cols-3";
-    }
-
-    return "grid-cols-2 md:grid-cols-4";
-};
-
-const getCollectionPreviewAspectClass = (count: number): string => {
-    if (count <= 1) {
-        return "aspect-[16/10] md:aspect-[16/9]";
-    }
-
-    if (count <= 2) {
-        return "aspect-[4/3] md:aspect-[16/10]";
-    }
-
-    if (count <= 4) {
-        return "aspect-[4/3]";
-    }
-
-    return "aspect-square";
-};
-
 const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
-    const [selectedCollection, setSelectedCollection] = useState<StoryCollection | null>(null);
     const [selectedMedia, setSelectedMedia] = useState<StoryMedia | null>(null);
     const [mediaSequence, setMediaSequence] = useState<StoryMedia[]>([]);
     const [mediaSequenceIndex, setMediaSequenceIndex] = useState(-1);
+    const [collectionApi, setCollectionApi] = useState<CarouselApi>();
+    const [currentCollectionSlide, setCurrentCollectionSlide] = useState(1);
+    const [activePhotoCategory, setActivePhotoCategory] = useState("");
     const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number } | null>(null);
     const [showMobileMediaDetails, setShowMobileMediaDetails] = useState(false);
     const [mediaLoaded, setMediaLoaded] = useState(false);
@@ -562,12 +513,52 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
 
     const hasCollections = collections.length > 0;
     const hasHighlights = highlights.length > 0;
+    const activePhotoSection = photoSections.find(([category]) => category === activePhotoCategory) ?? photoSections[0];
+    const activePhotos = activePhotoSection?.[1] ?? [];
+    const activeHorizontalPhotos = activePhotos.filter((item) => item.width && item.height && item.width > item.height);
+    const activeVerticalPhotos = activePhotos.filter((item) => !item.width || !item.height || item.width <= item.height);
+    const activeCollectionIndex = collections.length > 0
+        ? Math.min(Math.max(currentCollectionSlide - 1, 0), collections.length - 1)
+        : -1;
+    const activeCollection = activeCollectionIndex >= 0 ? collections[activeCollectionIndex] : null;
 
     useEffect(() => {
         setNaturalDimensions(null);
         setShowMobileMediaDetails(false);
         setMediaLoaded(false);
     }, [selectedMedia?.id]);
+
+    useEffect(() => {
+        if (photoSections.length === 0) {
+            if (activePhotoCategory) {
+                setActivePhotoCategory("");
+            }
+            return;
+        }
+
+        if (!photoSections.some(([category]) => category === activePhotoCategory)) {
+            setActivePhotoCategory(photoSections[0][0]);
+        }
+    }, [activePhotoCategory, photoSections]);
+
+    useEffect(() => {
+        if (!collectionApi) {
+            return;
+        }
+
+        const onSelect = () => {
+            setCurrentCollectionSlide(collectionApi.selectedScrollSnap() + 1);
+        };
+
+        onSelect();
+        collectionApi.on("select", onSelect);
+        collectionApi.on("reInit", onSelect);
+
+        return () => {
+            collectionApi.off("select", onSelect);
+            collectionApi.off("reInit", onSelect);
+        };
+    }, [collectionApi]);
 
     const openMedia = (entry: StoryMedia, sequence?: StoryMedia[]) => {
         const nextSequence = sequence && sequence.length > 0 ? sequence : [];
@@ -590,17 +581,6 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
         }
 
         setSelectedMedia(entry);
-    };
-
-    const openCollectionEntry = (entry: StoryMedia) => {
-        // Photos are view-only; only videos open the player. This keeps the
-        // high-resolution lightbox unreachable for still images.
-        if (!isVideoMedia(entry)) {
-            return;
-        }
-
-        setSelectedCollection(null);
-        openMedia(entry, (selectedCollection?.entries ?? []).filter((item) => isVideoMedia(item)));
     };
 
     const canStepMedia = mediaSequence.length > 1 && mediaSequenceIndex >= 0;
@@ -716,12 +696,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const isMobileLandscapeMedia = mediaOrientation !== "portrait";
 
     return (
-        <section id="portfolio" className="relative overflow-hidden py-12 lg:py-16">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,hsl(var(--accent)/0.18),transparent_35%),radial-gradient(circle_at_92%_0%,hsl(var(--foreground)/0.06),transparent_28%)]" />
-            <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,hsl(var(--foreground)/0.16)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--foreground)/0.16)_1px,transparent_1px)] [background-size:44px_44px]" />
-
+        <section id="portfolio" className="relative overflow-hidden bg-background py-10 lg:py-12">
             <div className="container relative mx-auto px-6 lg:px-10">
-                {(sectionName || sectionTitle || sectionText) && (
+                {!hasCollections && (sectionName || sectionTitle || sectionText) && (
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -748,233 +725,317 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                 )}
 
                 {hasCollections && (
-                    <div className="w-full">
-                        <div className="mb-8">
-                            <p className="font-body text-sm uppercase tracking-[0.22em] text-muted-foreground">
-                                Client Work
-                            </p>
+                    <div id="collections" className="w-full scroll-mt-24">
+                        <div className="mb-6 flex items-end justify-between gap-4">
                             <h3 className="font-display text-2xl font-light italic text-foreground sm:text-3xl">
-                                Selected Case Studies
+                                Case Studies
                             </h3>
-                            <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-muted-foreground">
-                                Real brands — the work, the deliverables, and their words.
+                            <p className="hidden font-body text-[0.62rem] uppercase tracking-[0.2em] text-muted-foreground sm:block">
+                                Client work
                             </p>
                         </div>
 
-                        <div className="space-y-16 lg:space-y-24">
-                            {collections.map((collection, index) => {
-                                const coverEntry = collection.entries[0];
-                                const sideEntries = collection.entries.slice(1, 3);
-                                const reverse = index % 2 === 1;
-                                const hasSide = sideEntries.length > 0;
-                                const coverPreviewUrl =
-                                    getPreviewUrl(coverEntry) || coverEntry.thumbnailUrl || coverEntry.mediaUrl;
-                                const indexLabel = String(index + 1).padStart(2, "0");
+                        <Carousel
+                            setApi={setCollectionApi}
+                            opts={{ align: "start", loop: collections.length > 1 }}
+                            className="w-full"
+                        >
+                            {collections.length > 1 && (
+                                <div className="mb-5 flex items-center gap-3">
+                                    <p className="inline-flex items-center gap-2 font-body text-[0.62rem] uppercase tracking-[0.22em] text-muted-foreground">
+                                        <ArrowLeft className="h-3.5 w-3.5" />
+                                        Swipe for more
+                                    </p>
+                                    <p className="rounded-full border border-border bg-background px-3 py-1 font-body text-[0.65rem] text-muted-foreground shadow-sm">
+                                        {currentCollectionSlide} / {collections.length}
+                                    </p>
+                                    <div className="ml-auto flex items-center gap-3">
+                                        <CarouselPrevious className="!static !left-auto !top-auto !h-10 !w-10 !translate-y-0 rounded-full border-accent/70 bg-background text-foreground" />
+                                        <CarouselNext className="!static !right-auto !top-auto !h-10 !w-10 !translate-y-0 rounded-full border-accent/70 bg-background text-foreground" />
+                                    </div>
+                                </div>
+                            )}
+                            <CarouselContent className="-ml-4 items-stretch">
+                                {collections.map((collection, index) => {
+                                    const coverEntry = collection.entries[0];
+                                    const coverPreviewUrl = getPreviewUrl(coverEntry) || coverEntry.thumbnailUrl || coverEntry.mediaUrl;
+                                    const isActive = index === activeCollectionIndex;
 
-                                return (
-                                    <article key={collection.id} className="group relative">
-                                        <span className="pointer-events-none absolute -top-8 right-0 z-0 select-none font-display text-[6rem] font-light italic leading-none text-foreground/[0.06] sm:text-[8rem] lg:text-[9.5rem]">
-                                            {indexLabel}
-                                        </span>
-
-                                        <div className="relative z-[1] mb-6 flex items-end justify-between gap-4">
-                                            <div>
-                                                <p className="font-body text-[0.62rem] uppercase tracking-[0.28em] text-accent">
-                                                    Case Study {indexLabel}
-                                                </p>
-                                                <h4 className="mt-1.5 font-display text-3xl font-light italic leading-[1.05] text-foreground sm:text-4xl lg:text-5xl">
-                                                    {collection.client || collection.title}
-                                                </h4>
-                                                {(collection.location || collection.track) && (
-                                                    <p className="mt-1.5 font-body text-[0.62rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                                        {collection.location || collection.track}
-                                                    </p>
+                                    return (
+                                        <CarouselItem
+                                            key={collection.id}
+                                            className="flex basis-[94%] pl-4 sm:basis-[82%] md:basis-[70%] lg:basis-[48%]"
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => collectionApi?.scrollTo(index)}
+                                                className={cn(
+                                                    "group relative flex h-full min-h-[26rem] w-full flex-col overflow-hidden border bg-muted text-left transition-opacity lg:min-h-[24rem]",
+                                                    isActive ? "border-accent/70 opacity-100" : "border-border opacity-80",
                                                 )}
-                                            </div>
-                                            <div className="flex shrink-0 flex-col items-end gap-2">
-                                                {collection.clientLogo && (
+                                            >
+                                                {canUseInlineVideoPreview(coverEntry) ? (
+                                                    <video
+                                                        src={getVideoPlaybackUrl(coverEntry)}
+                                                        muted
+                                                        loop
+                                                        autoPlay
+                                                        playsInline
+                                                        preload="metadata"
+                                                        poster={coverPreviewUrl}
+                                                        style={getMediaObjectPosition(coverEntry)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.04]"
+                                                    />
+                                                ) : (
                                                     <img
-                                                        src={collection.clientLogo}
-                                                        alt={collection.client || "Client logo"}
+                                                        src={getOptimizedImageUrl(coverPreviewUrl, IMAGE_WIDTHS[1])}
+                                                        alt={coverEntry.title}
                                                         loading="lazy"
+                                                        decoding="async"
                                                         {...protectedImageProps}
-                                                        className="h-10 w-auto max-w-[140px] object-contain"
+                                                        style={getMediaObjectPosition(coverEntry)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.04]"
                                                     />
                                                 )}
-                                                {collection.isCollaboration && <CollaborationBadge variant="light" />}
-                                            </div>
-                                        </div>
+                                                {!canUseInlineVideoPreview(coverEntry) && <PhotoProtectionOverlay />}
 
-                                        <div className="relative z-[1] grid gap-6 lg:grid-cols-12 lg:gap-10">
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedCollection(collection)}
-                                                aria-label={`Open ${collection.client || collection.title || "case study"}`}
-                                                className={`block w-full lg:col-span-7 ${reverse ? "lg:order-2" : ""}`}
-                                            >
-                                            <div className={`grid gap-2 ${hasSide ? "grid-cols-3" : "grid-cols-1"}`}>
-                                                <div
-                                                    className={`relative overflow-hidden bg-muted ${hasSide ? "col-span-2 aspect-[4/5]" : "aspect-[16/10]"}`}
-                                                >
-                                                    {canUseInlineVideoPreview(coverEntry) ? (
-                                                        <video
-                                                            src={getVideoPlaybackUrl(coverEntry)}
-                                                            muted
-                                                            loop
-                                                            autoPlay
-                                                            playsInline
-                                                            preload="metadata"
-                                                            poster={coverPreviewUrl}
-                                                            style={getMediaObjectPosition(coverEntry)}
-                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-[1.04]"
-                                                        />
-                                                    ) : (
-                                                        <img
-                                                            src={getOptimizedImageUrl(coverPreviewUrl, IMAGE_WIDTHS[1])}
-                                                            srcSet={getImageSrcSet(coverPreviewUrl)}
-                                                            sizes={getImageSizes(coverPreviewUrl)}
-                                                            alt={coverEntry.title}
-                                                            loading="lazy"
-                                                            decoding="async"
-                                                            {...protectedImageProps}
-                                                            style={getMediaObjectPosition(coverEntry)}
-                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-[1.04]"
-                                                        />
-                                                    )}
-                                                    {!canUseInlineVideoPreview(coverEntry) && <PhotoProtectionOverlay />}
-                                                    <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-500 group-hover:bg-black/10" />
-                                                    {isVideoMedia(coverEntry) && (
-                                                        <span className="absolute left-2 top-2 z-[2] inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 font-body text-[0.5rem] uppercase tracking-[0.14em] text-foreground backdrop-blur-sm">
-                                                            <Clapperboard className="h-2.5 w-2.5 text-accent" />
-                                                            Video
-                                                        </span>
-                                                    )}
+                                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+                                                <div className="absolute right-4 top-4 z-[2] flex flex-col items-end gap-2">
+                                                    {collection.isCollaboration && <CollaborationBadge />}
+                                                    <span className="rounded-full bg-white/92 px-4 py-2 font-body text-[0.62rem] uppercase tracking-[0.18em] text-foreground shadow-sm backdrop-blur-sm">
+                                                        {collection.entries.length} assets
+                                                    </span>
                                                 </div>
 
-                                                {hasSide && (
-                                                    <div className="flex flex-col gap-2">
-                                                        {sideEntries.map((entry) => {
-                                                            const sidePreviewUrl =
-                                                                getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
-                                                            return (
-                                                                <div
-                                                                    key={entry.id}
-                                                                    className="relative flex-1 overflow-hidden bg-muted"
-                                                                >
-                                                                    <img
-                                                                        src={getOptimizedImageUrl(sidePreviewUrl, HIGHLIGHT_TILE_WIDTH)}
-                                                                        alt={entry.title}
-                                                                        loading="lazy"
-                                                                        decoding="async"
-                                                                        {...protectedImageProps}
-                                                                        style={getMediaObjectPosition(entry)}
-                                                                        className="absolute inset-0 h-full w-full object-cover"
-                                                                    />
-                                                                    <PhotoProtectionOverlay />
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                {isVideoMedia(coverEntry) && (
+                                                    <span className="absolute left-4 top-4 z-[2] inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 font-body text-[0.56rem] uppercase tracking-[0.14em] text-foreground backdrop-blur-sm">
+                                                        <Clapperboard className="h-3 w-3 text-accent" />
+                                                        Video
+                                                    </span>
                                                 )}
-                                            </div>
-                                        </button>
 
-                                        <div className={`flex flex-col justify-center lg:col-span-5 ${reverse ? "lg:order-1" : ""}`}>
-                                            <dl className="grid grid-cols-2 gap-x-5 gap-y-3 border-y border-border py-4">
-                                                {collection.title && (
-                                                    <div>
-                                                        <dt className="font-body text-[0.55rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                                            Campaign
-                                                        </dt>
-                                                        <dd className="mt-1 font-display text-base italic leading-tight text-foreground">
-                                                            {collection.title}
-                                                        </dd>
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <dt className="font-body text-[0.55rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                                        Deliverables
-                                                    </dt>
-                                                    <dd className="mt-1 font-body text-xs leading-snug text-foreground/80">
-                                                        {collection.deliverables
-                                                            ? collection.deliverables
-                                                            : `${collection.entries.length} ${collection.entries.length === 1 ? "asset" : "assets"} · photo & video`}
-                                                    </dd>
-                                                </div>
-                                            </dl>
-
-                                            {collection.story && (
-                                                <p className="mt-4 font-body text-sm leading-relaxed text-muted-foreground">
-                                                    {truncateText(collection.story, 220)}
-                                                </p>
-                                            )}
-
-                                            {collection.testimonial ? (
-                                                <figure className="mt-5">
-                                                    <p aria-hidden="true" className="font-display text-4xl leading-none text-accent/70">
-                                                        &ldquo;
+                                                <div className="relative z-[2] mt-auto p-5 sm:p-6">
+                                                    <p className="mb-2 font-body text-[0.58rem] uppercase tracking-[0.2em] text-white/75">
+                                                        Case Study {String(index + 1).padStart(2, "0")}
                                                     </p>
-                                                    <blockquote className="-mt-3 font-display text-lg font-light italic leading-snug text-foreground/90">
-                                                        {collection.testimonial.quote}
-                                                    </blockquote>
-                                                    {(collection.testimonial.name || collection.testimonial.role) && (
-                                                        <figcaption className="mt-3 font-body text-[0.58rem] uppercase tracking-[0.18em] text-muted-foreground">
-                                                            {collection.testimonial.name}
-                                                            {collection.testimonial.name && collection.testimonial.role ? " · " : ""}
-                                                            {collection.testimonial.role}
+                                                    <h4 className="font-display text-3xl font-light italic leading-[1.08] text-white sm:text-4xl">
+                                                        {collection.client || collection.title}
+                                                    </h4>
+                                                    {(collection.location || collection.track) && (
+                                                        <p className="mt-3 font-body text-[0.62rem] uppercase tracking-[0.18em] text-white/75">
+                                                            {collection.location || collection.track}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        </CarouselItem>
+                                    );
+                                })}
+                            </CarouselContent>
+                        </Carousel>
+
+                        {activeCollection && (
+                            <article className="mt-8 border-t border-border pt-7 lg:grid lg:grid-cols-[minmax(18rem,0.34fr)_minmax(0,0.66fr)] lg:gap-10">
+                                <div className="space-y-5">
+                                    <div>
+                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.24em] text-accent">
+                                            Selected collection
+                                        </p>
+                                        <h4 className="mt-2 font-display text-3xl font-light italic leading-[1.05] text-foreground sm:text-4xl">
+                                            {activeCollection.client || activeCollection.title}
+                                        </h4>
+                                    </div>
+
+                                    {(activeCollection.location || activeCollection.track) && (
+                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                            {activeCollection.location || activeCollection.track}
+                                        </p>
+                                    )}
+
+                                    {activeCollection.description && (
+                                        <p className="font-body text-sm leading-relaxed text-muted-foreground">
+                                            {activeCollection.description}
+                                        </p>
+                                    )}
+
+                                    {activeCollection.story && (
+                                        <p className="font-body text-sm leading-relaxed text-muted-foreground">
+                                            {activeCollection.story}
+                                        </p>
+                                    )}
+
+                                    <dl className="grid grid-cols-2 gap-4 border-y border-border py-3">
+                                        <div>
+                                            <dt className="font-body text-[0.56rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                Assets
+                                            </dt>
+                                            <dd className="mt-1 font-body text-sm text-foreground">
+                                                {activeCollection.entries.length}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="font-body text-[0.56rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                Deliverables
+                                            </dt>
+                                            <dd className="mt-1 font-body text-xs leading-snug text-foreground/80">
+                                                {activeCollection.deliverables
+                                                    ? activeCollection.deliverables
+                                                    : `${activeCollection.entries.length} ${activeCollection.entries.length === 1 ? "asset" : "assets"} - photo & video`}
+                                            </dd>
+                                        </div>
+                                    </dl>
+
+                                    {activeCollection.testimonial && (
+                                        <figure>
+                                            <div className="flex items-center gap-4">
+                                                {activeCollection.clientLogo && (
+                                                    <img
+                                                        src={activeCollection.clientLogo}
+                                                        alt={activeCollection.testimonial.name || activeCollection.client || "Feedback source"}
+                                                        loading="lazy"
+                                                        {...protectedImageProps}
+                                                        className="h-24 w-24 shrink-0 rounded-full border border-border bg-white object-cover shadow-sm sm:h-28 sm:w-28"
+                                                    />
+                                                )}
+                                                <div className="min-w-0">
+                                                    {(activeCollection.client || activeCollection.title) && (
+                                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-accent">
+                                                            {activeCollection.client || activeCollection.title}
+                                                        </p>
+                                                    )}
+                                                    {(activeCollection.testimonial.name || activeCollection.testimonial.role) && (
+                                                        <figcaption className="mt-2 font-body text-[0.64rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                            {activeCollection.testimonial.name}
+                                                            {activeCollection.testimonial.name && activeCollection.testimonial.role ? " / " : ""}
+                                                            {activeCollection.testimonial.role}
                                                         </figcaption>
                                                     )}
-                                                </figure>
-                                            ) : (
-                                                collection.highlights.length > 0 && (
-                                                    <div className="mt-4 flex flex-wrap gap-2">
-                                                        {collection.highlights.slice(0, 3).map((insight) => (
-                                                            <span
-                                                                key={`${collection.id}-${insight}`}
-                                                                className="inline-flex items-center gap-1.5 border border-border bg-background/70 px-2.5 py-1 font-body text-[0.6rem] text-foreground/80"
-                                                            >
-                                                                <span className="h-1 w-1 rounded-full bg-accent" />
-                                                                {insight}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )
-                                            )}
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 border-l border-accent pl-4">
+                                                <blockquote className="font-display text-lg font-light italic leading-snug text-foreground/88">
+                                                    {activeCollection.testimonial.quote}
+                                                </blockquote>
+                                            </div>
+                                        </figure>
+                                    )}
 
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedCollection(collection)}
-                                                className="group/btn mt-6 inline-flex items-center gap-2 self-start border-b border-foreground pb-1 font-body text-[0.7rem] uppercase tracking-[0.18em] text-foreground transition-all hover:gap-3"
-                                            >
-                                                View the full set
-                                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
-                                            </button>
+                                    {!activeCollection.testimonial && activeCollection.clientLogo && (
+                                        <div className="flex items-center gap-3 border-y border-border py-3">
+                                            <img
+                                                src={activeCollection.clientLogo}
+                                                alt={activeCollection.client || "Client logo"}
+                                                loading="lazy"
+                                                {...protectedImageProps}
+                                                className="h-16 w-16 shrink-0 rounded-full border border-border bg-white object-cover"
+                                            />
+                                            {(activeCollection.client || activeCollection.title) && (
+                                                <p className="font-body text-[0.6rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                    {activeCollection.client || activeCollection.title}
+                                                </p>
+                                            )}
                                         </div>
-                                    </div>
-                                    </article>
-                                );
-                            })}
-                        </div>
+                                    )}
+
+                                    {activeCollection.highlights.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {activeCollection.highlights.map((highlight) => (
+                                                <span
+                                                    key={`${activeCollection.id}-${highlight}`}
+                                                    className="border border-border px-2.5 py-1 font-body text-[0.6rem] uppercase tracking-[0.12em] text-foreground/80"
+                                                >
+                                                    {highlight}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-7 grid grid-cols-2 gap-2 sm:gap-3 lg:mt-0 lg:grid-cols-4">
+                                    {activeCollection.entries.map((entry, entryIndex) => {
+                                        const previewUrl = getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
+                                        const isFeature = entryIndex === 0;
+                                        const tileClassName = isFeature
+                                                ? "col-span-2 row-span-2 aspect-[4/3] lg:aspect-auto"
+                                                : "aspect-[4/5]";
+
+                                        const mediaPreview = canUseInlineVideoPreview(entry) ? (
+                                            <video
+                                                src={getVideoPlaybackUrl(entry)}
+                                                muted
+                                                loop
+                                                autoPlay
+                                                playsInline
+                                                preload="metadata"
+                                                poster={previewUrl}
+                                                style={getMediaObjectPosition(entry)}
+                                                className="absolute inset-0 h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={getOptimizedImageUrl(previewUrl, isFeature ? IMAGE_WIDTHS[1] : IMAGE_WIDTHS[0])}
+                                                alt={entry.title}
+                                                loading="lazy"
+                                                decoding="async"
+                                                {...protectedImageProps}
+                                                style={getMediaObjectPosition(entry)}
+                                                className="absolute inset-0 h-full w-full object-cover"
+                                            />
+                                        );
+
+                                        const mediaTile = (
+                                            <>
+                                                {mediaPreview}
+                                                {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
+                                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+
+                                                {isVideoMedia(entry) && (
+                                                    <span className="absolute left-2 top-2 z-[2] inline-flex items-center gap-1 bg-white/90 px-2 py-1 font-body text-[0.54rem] uppercase tracking-[0.12em] text-foreground backdrop-blur-sm">
+                                                        <Clapperboard className="h-3 w-3 text-accent" />
+                                                        Video
+                                                    </span>
+                                                )}
+                                            </>
+                                        );
+
+                                        return isVideoMedia(entry) ? (
+                                            <button
+                                                key={entry.id}
+                                                type="button"
+                                                onClick={() => openMedia(entry, activeCollection.entries.filter((item) => isVideoMedia(item)))}
+                                                className={cn("group/media relative overflow-hidden bg-muted text-left", tileClassName)}
+                                                aria-label={`Play ${entry.title || activeCollection.title || "collection video"}`}
+                                            >
+                                                {mediaTile}
+                                            </button>
+                                        ) : (
+                                            <figure
+                                                key={entry.id}
+                                                className={cn("group/media relative overflow-hidden bg-muted text-left", tileClassName)}
+                                            >
+                                                {mediaTile}
+                                            </figure>
+                                        );
+                                    })}
+                                </div>
+                            </article>
+                        )}
+
                     </div>
                 )}
 
                 {hasCollections && hasHighlights && (
-                    <div className="my-10 h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+                    <div className="my-10 h-px w-full bg-border/80" />
                 )}
 
                 {hasHighlights && (
-                    <div className="w-full">
-                        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+                    <div id="photos" className="w-full scroll-mt-24">
+                        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
                             <div>
-                                <p className="font-body text-sm uppercase tracking-[0.22em] text-muted-foreground">
-                                    Photography
-                                </p>
                                 <h3 className="font-display text-2xl font-light italic text-foreground sm:text-3xl">
-                                    Frames, by the Worlds I Shoot
+                                    Photography
                                 </h3>
-                                <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-muted-foreground">
-                                    Stills organized by category — the same worlds brands hire me to capture.
-                                </p>
                             </div>
                             <p className="inline-flex items-center gap-1.5 font-body text-[0.56rem] uppercase tracking-[0.16em] text-muted-foreground">
                                 <Lock className="h-3 w-3" />
@@ -982,207 +1043,154 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                             </p>
                         </div>
 
-                        <div className="space-y-9">
-                            {photoSections.map(([category, photos]) => (
-                                <div key={category}>
-                                    <div className="mb-3 flex items-center gap-4">
-                                        <h4 className="font-body text-xs font-medium uppercase tracking-[0.24em] text-foreground">
+                        <div className="-mx-6 mb-6 overflow-x-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            <div className="flex min-w-max items-center gap-2">
+                                {photoSections.map(([category, photos]) => {
+                                    const isActive = category === activePhotoSection?.[0];
+
+                                    return (
+                                        <button
+                                            key={category}
+                                            type="button"
+                                            onClick={() => setActivePhotoCategory(category)}
+                                            className={cn(
+                                                "inline-flex items-center gap-2 border px-3.5 py-2 font-body text-[0.62rem] uppercase tracking-[0.16em] transition-colors",
+                                                isActive
+                                                    ? "border-foreground bg-foreground text-background"
+                                                    : "border-border bg-background text-muted-foreground hover:border-accent hover:text-foreground",
+                                            )}
+                                        >
                                             {category}
-                                        </h4>
-                                        <span className="h-px flex-1 bg-border" />
-                                        <span className="font-body text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground">
-                                            {photos.length} {photos.length === 1 ? "frame" : "frames"}
-                                        </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 sm:gap-2 lg:grid-cols-5 xl:grid-cols-6">
-                                        {photos.map((item) => {
-                                            const photoPreviewUrl =
-                                                getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
-                                            return (
-                                                <figure
-                                                    key={item.id}
-                                                    onContextMenu={(event) => event.preventDefault()}
-                                                    className="group relative aspect-square select-none overflow-hidden bg-muted"
-                                                >
-                                                    {canUseInlineVideoPreview(item) ? (
-                                                        <video
-                                                            src={getVideoPlaybackUrl(item)}
-                                                            muted
-                                                            loop
-                                                            autoPlay
-                                                            playsInline
-                                                            preload="metadata"
-                                                            poster={photoPreviewUrl}
-                                                            style={getMediaObjectPosition(item)}
-                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
-                                                        />
-                                                    ) : (
-                                                        <img
-                                                            src={getOptimizedImageUrl(
-                                                                photoPreviewUrl,
-                                                                HIGHLIGHT_TILE_WIDTH,
-                                                                HIGHLIGHT_TILE_WIDTH,
-                                                            )}
-                                                            alt={item.title}
-                                                            loading="lazy"
-                                                            decoding="async"
-                                                            {...protectedImageProps}
-                                                            style={getMediaObjectPosition(item)}
-                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
-                                                        />
-                                                    )}
-                                                    {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
-                                                    <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/10" />
-                                                    {item.isCollaboration && (
-                                                        <CollaborationBadge variant="light" className="absolute left-1.5 top-1.5 z-[2]" />
-                                                    )}
-                                                </figure>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-            </div>
-
-            <Dialog
-                open={Boolean(selectedCollection)}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setSelectedCollection(null);
-                    }
-                }}
-            >
-                <DialogContent className="w-[97vw] max-w-5xl max-h-[90vh] overflow-y-auto p-0">
-                    {selectedCollection && (
-                        <div className="flex flex-col">
-                            <div className="p-5 pt-10 sm:p-8 sm:pt-12">
-                                <DialogHeader className="text-left pr-10 md:pr-14">
-                                    {selectedCollection.subtitle && (
-                                        <p className="font-body text-[0.6rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                            {selectedCollection.subtitle}
-                                        </p>
-                                    )}
-                                    {selectedCollection.title && (
-                                        <DialogTitle className="break-words font-display text-3xl font-light italic leading-tight text-foreground sm:text-4xl">
-                                            {selectedCollection.title}
-                                        </DialogTitle>
-                                    )}
-                                    {selectedCollection.story && (
-                                        <p className="mt-1 max-w-2xl font-body text-sm leading-relaxed text-muted-foreground sm:text-base">
-                                            {selectedCollection.story}
-                                        </p>
-                                    )}
-                                </DialogHeader>
-
-                                {selectedCollection.highlights.length > 0 && (
-                                    <div className="mt-5 flex flex-wrap gap-2">
-                                        {selectedCollection.highlights.map((highlight) => (
-                                            <span
-                                                key={`${selectedCollection.id}-${highlight}`}
-                                                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs text-foreground/85"
-                                            >
-                                                <span className="h-1 w-1 rounded-full bg-accent" />
-                                                {highlight}
+                                            <span className={cn("text-[0.56rem]", isActive ? "text-background/70" : "text-muted-foreground")}>
+                                                {photos.length}
                                             </span>
-                                        ))}
-                                    </div>
-                                )}
+                                        </button>
+                                    );
+                                })}
                             </div>
+                        </div>
 
-                            <div className="border-t border-border bg-muted/20 p-4 sm:p-6">
-                                <div
-                                    className={`grid gap-3 ${getCollectionPreviewGridClass(
-                                        selectedCollection.entries.length,
-                                    )}`}
-                                >
-                                    {selectedCollection.entries.map((entry, index) => {
-                                        const previewUrl =
-                                            getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
-                                        const entryIsVideo = isVideoMedia(entry);
-                                        const wrapperClass = `group/entry relative overflow-hidden bg-background ${getCollectionPreviewAspectClass(
-                                            selectedCollection.entries.length,
-                                        )}`;
+                        {activePhotoSection && (
+                            <div>
+                                <div className="mb-4 flex items-center gap-4">
+                                    <h4 className="font-body text-xs font-medium uppercase tracking-[0.24em] text-foreground">
+                                        {activePhotoSection[0]}
+                                    </h4>
+                                    <span className="h-px flex-1 bg-border" />
+                                    <span className="font-body text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                        {activePhotos.length} {activePhotos.length === 1 ? "frame" : "frames"}
+                                    </span>
+                                </div>
 
-                                        const entryInner = (
-                                            <>
-                                                {canUseInlineVideoPreview(entry) ? (
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-6 xl:grid-cols-7">
+                                    {activeVerticalPhotos.map((item) => {
+                                        const photoPreviewUrl = getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
+
+                                        return (
+                                            <figure
+                                                key={item.id}
+                                                onContextMenu={(event) => event.preventDefault()}
+                                                className="group relative aspect-[3/4] select-none overflow-hidden bg-muted"
+                                            >
+                                                {canUseInlineVideoPreview(item) ? (
                                                     <video
-                                                        src={getVideoPlaybackUrl(entry)}
+                                                        src={getVideoPlaybackUrl(item)}
                                                         muted
                                                         loop
                                                         autoPlay
                                                         playsInline
                                                         preload="metadata"
-                                                        style={getMediaObjectPosition(entry)}
-                                                        className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover/entry:scale-[1.08]"
+                                                        poster={photoPreviewUrl}
+                                                        style={getMediaObjectPosition(item)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
                                                     />
                                                 ) : (
                                                     <img
                                                         src={getOptimizedImageUrl(
-                                                            previewUrl,
-                                                            IMAGE_WIDTHS[1],
+                                                            photoPreviewUrl,
+                                                            320,
+                                                            420,
                                                         )}
-                                                        alt={entry.title}
+                                                        alt={item.title}
                                                         loading="lazy"
                                                         decoding="async"
                                                         {...protectedImageProps}
-                                                        style={getMediaObjectPosition(entry)}
-                                                        className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover/entry:scale-[1.08]"
+                                                        style={getMediaObjectPosition(item)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
                                                     />
                                                 )}
-                                                {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
-                                                <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-300 group-hover/entry:bg-black/10" />
-
-                                                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover/entry:opacity-100">
-                                                    {entry.title && (
-                                                        <p className="font-body text-xs text-white drop-shadow-sm">{entry.title}</p>
-                                                    )}
-                                                </div>
-
-                                                <span className="absolute left-2 top-2 z-[2] grid h-6 w-6 place-items-center rounded-full bg-white/80 font-body text-[0.56rem] font-medium text-foreground backdrop-blur-sm">
-                                                    {String(index + 1).padStart(2, "0")}
-                                                </span>
-
-                                                {entryIsVideo && (
-                                                    <span className="absolute right-2 top-2 z-[2] grid h-6 w-6 place-items-center rounded-full bg-white/80 backdrop-blur-sm">
-                                                        <Play className="h-2.5 w-2.5 text-foreground" />
-                                                    </span>
+                                                {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
+                                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-70 transition-opacity group-hover:opacity-100" />
+                                                {item.isCollaboration && (
+                                                    <CollaborationBadge variant="light" className="absolute left-1.5 top-1.5 z-[2]" />
                                                 )}
-                                            </>
-                                        );
-
-                                        return entryIsVideo ? (
-                                            <button
-                                                type="button"
-                                                key={entry.id}
-                                                onClick={() => openCollectionEntry(entry)}
-                                                onContextMenu={(event) => event.preventDefault()}
-                                                aria-label={`Play video ${entry.title || "collection asset"}`}
-                                                className={wrapperClass}
-                                            >
-                                                {entryInner}
-                                            </button>
-                                        ) : (
-                                            <figure
-                                                key={entry.id}
-                                                onContextMenu={(event) => event.preventDefault()}
-                                                className={`${wrapperClass} select-none`}
-                                            >
-                                                {entryInner}
                                             </figure>
                                         );
                                     })}
                                 </div>
+
+                                {activeHorizontalPhotos.length > 0 && (
+                                    <div className="mt-8">
+                                        <div className="mb-4 flex items-center gap-4">
+                                            <h4 className="font-body text-xs font-medium uppercase tracking-[0.22em] text-foreground">
+                                                Horizontal Frames
+                                            </h4>
+                                            <span className="h-px flex-1 bg-border" />
+                                            <span className="font-body text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                {activeHorizontalPhotos.length} {activeHorizontalPhotos.length === 1 ? "frame" : "frames"}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+                                            {activeHorizontalPhotos.map((item) => {
+                                                const photoPreviewUrl = getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
+
+                                                return (
+                                                    <figure
+                                                        key={item.id}
+                                                        onContextMenu={(event) => event.preventDefault()}
+                                                        className="group relative aspect-[4/3] select-none overflow-hidden bg-muted"
+                                                    >
+                                                        {canUseInlineVideoPreview(item) ? (
+                                                            <video
+                                                                src={getVideoPlaybackUrl(item)}
+                                                                muted
+                                                                loop
+                                                                autoPlay
+                                                                playsInline
+                                                                preload="metadata"
+                                                                poster={photoPreviewUrl}
+                                                                style={getMediaObjectPosition(item)}
+                                                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                                                            />
+                                                        ) : (
+                                                            <img
+                                                                src={getOptimizedImageUrl(photoPreviewUrl, 420, 320)}
+                                                                alt={item.title}
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                                {...protectedImageProps}
+                                                                style={getMediaObjectPosition(item)}
+                                                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                                                            />
+                                                        )}
+                                                        {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
+                                                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-70 transition-opacity group-hover:opacity-100" />
+                                                        {item.isCollaboration && (
+                                                            <CollaborationBadge variant="light" className="absolute left-1.5 top-1.5 z-[2]" />
+                                                        )}
+                                                    </figure>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+                        )}
+                    </div>
+                )}
+
+            </div>
 
             <Dialog
                 open={Boolean(selectedMedia)}

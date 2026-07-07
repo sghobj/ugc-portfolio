@@ -79,6 +79,17 @@ type UgcCollectionEntry = {
   media?: UgcWorkMediaEntry[] | null
 }
 
+type UgcBrandEntry = {
+  id?: string | number | null
+  name?: string | null
+  logo?: string | null
+  website?: string | null
+  location?: string | null
+  category?: string | null
+  relatedCollectionSlug?: string | null
+  relatedCollectionName?: string | null
+}
+
 type UgcPayload = {
   aboutMe?: UgcTextBlock | null
   hero?: {
@@ -88,6 +99,7 @@ type UgcPayload = {
   } | null
   myServices?: UgcServicesBlock | null
   myWork?: UgcWorkBlock | null
+  brands?: UgcBrandEntry[] | null
   collections?: UgcCollectionEntry[] | null
   highlights?: UgcWorkMediaEntry[] | null
   videos?: UgcWorkMediaEntry[] | null
@@ -219,11 +231,23 @@ export type UgcShowcaseContent = {
   videos: UgcWorkMediaContent[]
 }
 
+export type UgcBrandContent = {
+  id: string
+  name: string
+  logoUrl: string
+  website: string
+  location: string
+  category: string
+  relatedCollectionSlug: string
+  relatedCollectionName: string
+}
+
 export type UgcContent = {
   aboutMe: UgcSectionContent
   hero: UgcHeroContent
   myServices: UgcServicesContent
   myWork: UgcWorkContent
+  brands: UgcBrandContent[]
   showcase: UgcShowcaseContent
 }
 
@@ -255,6 +279,7 @@ const emptyContent: UgcContent = {
     text: '',
     media: [],
   },
+  brands: [],
   showcase: {
     collections: [],
     highlights: [],
@@ -337,6 +362,23 @@ const normalizeWorkMedia = (
   )
 }
 
+const normalizeBrands = (entries: UgcBrandEntry[] | null | undefined): UgcBrandContent[] => {
+  return (
+    entries
+      ?.map((entry, index) => ({
+        id: entry?.id != null ? String(entry.id) : `brand-${index + 1}`,
+        name: asString(entry?.name),
+        logoUrl: resolveStrapiAssetUrl(asString(entry?.logo), env.strapiBaseUrl),
+        website: asString(entry?.website),
+        location: asString(entry?.location),
+        category: asString(entry?.category),
+        relatedCollectionSlug: asString(entry?.relatedCollectionSlug),
+        relatedCollectionName: asString(entry?.relatedCollectionName),
+      }))
+      .filter((entry) => entry.name.length > 0) ?? []
+  )
+}
+
 export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcContent => {
   if (!ugc) {
     return emptyContent
@@ -369,6 +411,7 @@ export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcCont
       text: asString(ugc.myWork?.text),
       media: normalizeWorkMedia(ugc.myWork?.media, 'work-media'),
     },
+    brands: normalizeBrands(ugc.brands),
     showcase: {
       collections:
         ugc.collections?.map((collection, index) => {
@@ -392,7 +435,7 @@ export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcCont
             story: asString(collection?.story),
             isCollaboration: collectionIsCollab,
             client: asString(collection?.client),
-            clientLogo: asString(collection?.clientLogo),
+            clientLogo: resolveStrapiAssetUrl(asString(collection?.clientLogo), env.strapiBaseUrl),
             location: asString(collection?.location),
             deliverables: asString(collection?.deliverables),
             testimonial: testimonialQuote
