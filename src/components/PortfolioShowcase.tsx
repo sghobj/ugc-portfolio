@@ -100,6 +100,8 @@ type StoryCollection = {
 type Orientation = "portrait" | "landscape" | "square";
 
 const IMAGE_WIDTHS = [640, 960, 1280];
+const DESKTOP_COLLECTION_GALLERY_PAGE_SIZE = 9;
+const MOBILE_COLLECTION_GALLERY_PAGE_SIZE = 5;
 /** Photo category sections shown first, in this order; anything else follows, uncategorized last. */
 const PHOTO_SECTION_ORDER = [
     "Highlights",
@@ -149,6 +151,15 @@ const trimOrEmpty = (value: string): string => value.trim();
 
 const dedupe = (values: string[]): string[] => {
     return Array.from(new Set(values.filter((value) => value.length > 0)));
+};
+
+const chunkItems = <T,>(items: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+    for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size));
+    }
+
+    return chunks;
 };
 
 const isVideoAsset = (url: string, mime = ""): boolean => {
@@ -407,6 +418,8 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const [mediaSequenceIndex, setMediaSequenceIndex] = useState(-1);
     const [collectionApi, setCollectionApi] = useState<CarouselApi>();
     const [currentCollectionSlide, setCurrentCollectionSlide] = useState(1);
+    const [collectionGalleryPage, setCollectionGalleryPage] = useState(0);
+    const [collectionGalleryPageSize, setCollectionGalleryPageSize] = useState(DESKTOP_COLLECTION_GALLERY_PAGE_SIZE);
     const [activePhotoCategory, setActivePhotoCategory] = useState("");
     const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number } | null>(null);
     const [showMobileMediaDetails, setShowMobileMediaDetails] = useState(false);
@@ -509,12 +522,51 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
         ? Math.min(Math.max(currentCollectionSlide - 1, 0), collections.length - 1)
         : -1;
     const activeCollection = activeCollectionIndex >= 0 ? collections[activeCollectionIndex] : null;
+    const activeCollectionGalleryPages = useMemo(
+        () => chunkItems(activeCollection?.entries ?? [], collectionGalleryPageSize),
+        [activeCollection?.entries, collectionGalleryPageSize],
+    );
+    const activeCollectionGalleryPage = Math.min(
+        collectionGalleryPage,
+        Math.max(activeCollectionGalleryPages.length - 1, 0),
+    );
+    const activeCollectionGalleryEntries =
+        activeCollectionGalleryPages[activeCollectionGalleryPage] ?? [];
+    const hasCollectionGalleryPages = activeCollectionGalleryPages.length > 1;
 
     useEffect(() => {
         setNaturalDimensions(null);
         setShowMobileMediaDetails(false);
         setMediaLoaded(false);
     }, [selectedMedia?.id]);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(max-width: 767px)");
+        const updatePageSize = () => {
+            setCollectionGalleryPageSize(
+                mediaQuery.matches
+                    ? MOBILE_COLLECTION_GALLERY_PAGE_SIZE
+                    : DESKTOP_COLLECTION_GALLERY_PAGE_SIZE,
+            );
+        };
+
+        updatePageSize();
+        mediaQuery.addEventListener("change", updatePageSize);
+
+        return () => {
+            mediaQuery.removeEventListener("change", updatePageSize);
+        };
+    }, []);
+
+    useEffect(() => {
+        setCollectionGalleryPage(0);
+    }, [activeCollection?.id, collectionGalleryPageSize]);
+
+    useEffect(() => {
+        if (collectionGalleryPage >= activeCollectionGalleryPages.length) {
+            setCollectionGalleryPage(Math.max(activeCollectionGalleryPages.length - 1, 0));
+        }
+    }, [activeCollectionGalleryPages.length, collectionGalleryPage]);
 
     useEffect(() => {
         if (photoSections.length === 0) {
@@ -940,10 +992,50 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     )}
                                 </div>
 
-                                <div className="mt-7 grid grid-cols-2 gap-2 sm:gap-3 lg:mt-0 lg:grid-cols-4">
-                                    {activeCollection.entries.map((entry, entryIndex) => {
+                                <div className="mt-7 lg:mt-0">
+                                    {hasCollectionGalleryPages && (
+                                        <div className="mb-4 flex items-center justify-between gap-4 border-b border-border pb-3">
+                                            <p className="font-body text-[0.58rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                Gallery {activeCollectionGalleryPage + 1} / {activeCollectionGalleryPages.length}
+                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setCollectionGalleryPage((current) =>
+                                                            Math.max(current - 1, 0),
+                                                        )
+                                                    }
+                                                    disabled={activeCollectionGalleryPage === 0}
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:border-accent disabled:opacity-35"
+                                                    aria-label="Previous collection gallery page"
+                                                >
+                                                    <ArrowLeft className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setCollectionGalleryPage((current) =>
+                                                            Math.min(
+                                                                current + 1,
+                                                                activeCollectionGalleryPages.length - 1,
+                                                            ),
+                                                        )
+                                                    }
+                                                    disabled={activeCollectionGalleryPage >= activeCollectionGalleryPages.length - 1}
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground transition-colors hover:border-accent disabled:opacity-35"
+                                                    aria-label="Next collection gallery page"
+                                                >
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                                    {activeCollectionGalleryEntries.map((entry, entryIndex) => {
                                         const previewUrl = getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
-                                        const isFeature = entryIndex === 0;
+                                        const isFeature = activeCollectionGalleryPage === 0 && entryIndex === 0;
                                         const tileClassName = isFeature
                                                 ? "col-span-2 row-span-2 aspect-[4/3] lg:aspect-auto"
                                                 : "aspect-[4/5]";
@@ -1006,6 +1098,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                             </figure>
                                         );
                                     })}
+                                    </div>
                                 </div>
                             </article>
                         )}
