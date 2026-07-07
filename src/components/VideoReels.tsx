@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Hls from "hls.js";
-import { Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Instagram, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 import { buildCloudinaryImageUrl, isCloudinaryUrl } from "@/lib/cloudinary";
@@ -27,6 +27,7 @@ type ReelVideo = {
     poster: string;
     mime: string;
     isCollaboration: boolean;
+    instagramUrl: string;
 };
 
 /** Sections shown first, in this order. Anything else follows alphabetically; uncategorized last. */
@@ -126,6 +127,7 @@ const toReel = (item: UgcWorkMediaContent): ReelVideo | null => {
         poster: poster ? optimizePoster(poster) : "",
         mime: item.mime,
         isCollaboration: item.isCollaboration,
+        instagramUrl: item.instagramUrl.trim(),
     };
 };
 
@@ -388,6 +390,17 @@ const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
                     <p className="mx-auto mt-1.5 line-clamp-2 max-w-[12rem] font-body text-[0.5rem] uppercase leading-relaxed tracking-[0.12em] text-[#d7c9ba]/68">
                         {reel.subtitle}
                     </p>
+                )}
+                {reel.instagramUrl && (
+                    <a
+                        href={reel.instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mx-auto mt-3 inline-flex items-center gap-1.5 border-b border-[#d7c9ba]/35 pb-1 font-body text-[0.55rem] font-medium uppercase tracking-[0.14em] text-[#fbf6ee]/82 transition-colors duration-300 hover:border-accent hover:text-accent"
+                    >
+                        <Instagram className="h-3.5 w-3.5" strokeWidth={1.65} />
+                        <span>View on Instagram</span>
+                    </a>
                 )}
             </div>
         </motion.div>

@@ -48,6 +48,7 @@ type UgcWorkMediaEntry = {
   hook?: string | null
   goal?: string | null
   style?: string | null
+  instagramUrl?: string | null
   sortOrder?: number | null
   isCollaboration?: boolean | null
   categories?: UgcTagEntry[] | null
@@ -181,6 +182,7 @@ export type UgcWorkMediaContent = {
   hook: string
   goal: string
   style: string
+  instagramUrl: string
   imageUrl: string
   sourceUrl: string
   provider: 'cloudinary' | 'bunny' | ''
@@ -333,6 +335,7 @@ const normalizeWorkMedia = (
           hook: asString(entry?.hook),
           goal: asString(entry?.goal),
           style: asString(entry?.style),
+          instagramUrl: asString(entry?.instagramUrl),
           imageUrl,
           sourceUrl,
           provider: asProvider(entry?.media?.provider),

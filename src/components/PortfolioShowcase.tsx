@@ -170,18 +170,6 @@ const isVideoMedia = (item: Pick<StoryMedia, "kind" | "mediaUrl" | "mime">): boo
     return isVideoAsset(item.mediaUrl, item.mime);
 };
 
-export const selectShowcaseVideos = <T extends Pick<StoryMedia, "kind" | "mediaUrl" | "mime">>(
-    sourceMedia: T[],
-    hasSeparatedShowcase: boolean,
-    separatedVideos: T[],
-): T[] => {
-    if (hasSeparatedShowcase) {
-        return separatedVideos;
-    }
-
-    return sourceMedia.filter((item) => isVideoMedia(item));
-};
-
 const isBunnyVideo = (item: Pick<StoryMedia, "kind" | "provider" | "embedUrl">): boolean =>
     item.kind === "video" && item.provider === "bunny" && item.embedUrl.trim().length > 0;
 

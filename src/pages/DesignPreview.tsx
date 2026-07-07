@@ -14,6 +14,7 @@ const hlsVideo = (id: string, title: string, category: string): UgcWorkMediaCont
     hook: "The hook",
     goal: "Bookings",
     style: "Cinematic",
+    instagramUrl: "",
     imageUrl: poster(id),
     sourceUrl: `${HLS}?id=${id}`,
     provider: "bunny",
