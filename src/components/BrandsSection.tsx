@@ -8,7 +8,7 @@ const BrandMark = ({ brand }: { brand: UgcBrandContent }) => {
             alt={brand.name}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover opacity-90 grayscale transition-all duration-700 group-hover:scale-110 group-hover:opacity-100 group-hover:grayscale-0"
+            className="h-full w-full object-cover opacity-95 transition-all duration-700 group-hover:scale-110 group-hover:opacity-100"
         />
     ) : (
         <span className="px-4 font-display text-xl font-light leading-tight text-foreground sm:text-2xl">
@@ -17,15 +17,15 @@ const BrandMark = ({ brand }: { brand: UgcBrandContent }) => {
     );
 
     return (
-        <div className="group flex min-w-[11rem] flex-col items-center text-center">
-            <div className="relative flex h-[7.25rem] w-[7.25rem] items-center justify-center overflow-hidden rounded-full border border-primary/15 bg-background shadow-[0_18px_45px_rgba(67,55,47,0.10)] transition-all duration-500 group-hover:-translate-y-1 group-hover:border-primary/35 group-hover:shadow-[0_22px_55px_rgba(154,94,58,0.16)] sm:h-[8rem] sm:w-[8rem]">
+        <div className="group flex w-full min-w-0 flex-col items-center text-center lg:w-auto lg:min-w-[11rem]">
+            <div className="relative flex h-[5.35rem] w-[5.35rem] items-center justify-center overflow-hidden rounded-full border border-primary/15 bg-background shadow-[0_14px_34px_rgba(67,55,47,0.10)] transition-all duration-500 group-hover:-translate-y-1 group-hover:border-primary/35 group-hover:shadow-[0_22px_55px_rgba(154,94,58,0.16)] min-[380px]:h-[5.75rem] min-[380px]:w-[5.75rem] sm:h-[8rem] sm:w-[8rem]">
                 {inner}
             </div>
-            <span className="mt-3 max-w-[14rem] text-balance font-body text-[0.55rem] font-medium uppercase tracking-[0.14em] text-foreground/80">
+            <span className="mt-3 w-full max-w-[8.5rem] text-balance break-words font-body text-[0.5rem] font-medium uppercase leading-snug tracking-[0.11em] text-foreground/80 sm:max-w-[14rem] sm:text-[0.55rem] sm:tracking-[0.14em]">
                 {brand.name}
             </span>
             {(brand.location || brand.category) && (
-                <span className="mt-1 max-w-[14rem] text-balance font-body text-[0.5rem] uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="mt-1 w-full max-w-[8.5rem] text-balance break-words font-body text-[0.45rem] uppercase leading-snug tracking-[0.09em] text-muted-foreground sm:max-w-[14rem] sm:text-[0.5rem] sm:tracking-[0.12em]">
                     {brand.location || brand.category}
                 </span>
             )}
@@ -65,7 +65,7 @@ const BrandsSection = ({ brands }: BrandsSectionProps) => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.7, delay: 0.1 }}
-                    className="mt-8 flex flex-wrap items-start justify-center gap-x-8 gap-y-8 sm:gap-x-12 lg:gap-x-14"
+                    className="mt-8 grid w-full grid-cols-2 place-items-start gap-x-3 gap-y-7 overflow-hidden sm:grid-cols-3 sm:gap-x-8 lg:flex lg:flex-wrap lg:items-start lg:justify-center lg:gap-x-14 lg:gap-y-8"
                 >
                     {brands.map((brand) =>
                         brand.website ? (
@@ -74,7 +74,7 @@ const BrandsSection = ({ brands }: BrandsSectionProps) => {
                                 href={brand.website}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="transition-transform duration-300 hover:-translate-y-0.5"
+                                className="block w-full min-w-0 transition-transform duration-300 hover:-translate-y-0.5 lg:w-auto"
                             >
                                 <BrandMark brand={brand} />
                             </a>
