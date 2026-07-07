@@ -50,6 +50,7 @@ type AssetFormState = {
   hook: string
   goal: string
   style: string
+  instagramUrl: string
   collectionId: string
   placement: string
 }
@@ -61,6 +62,7 @@ const emptyAssetForm: AssetFormState = {
   hook: '',
   goal: '',
   style: '',
+  instagramUrl: '',
   collectionId: '',
   placement: '',
 }
@@ -533,6 +535,7 @@ export const InstagramPanel = () => {
           hook: assetForm.hook.trim() || undefined,
           goal: assetForm.goal.trim() || undefined,
           style: assetForm.style.trim() || undefined,
+          instagramUrl: assetForm.instagramUrl.trim() || undefined,
           kind: 'video',
           storageProvider: 'bunny',
           placement: assetForm.placement || null,
@@ -571,6 +574,7 @@ export const InstagramPanel = () => {
           hook: assetForm.hook.trim() || undefined,
           goal: assetForm.goal.trim() || undefined,
           style: assetForm.style.trim() || undefined,
+          instagramUrl: assetForm.instagramUrl.trim() || undefined,
           kind: 'photo',
           storageProvider: 'cloudinary',
           placement: assetForm.placement || null,
@@ -1383,6 +1387,20 @@ export const InstagramPanel = () => {
                   <option value="highlight">Highlight</option>
                   <option value="video">Cinematic Video</option>
                 </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  Instagram reel link
+                </label>
+                <input
+                  value={assetForm.instagramUrl}
+                  onChange={(event) =>
+                    setAssetForm((previous) => ({ ...previous, instagramUrl: event.target.value }))
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary"
+                  placeholder="https://www.instagram.com/reel/..."
+                />
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">

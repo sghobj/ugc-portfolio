@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, Clapperboard, Eye, EyeOff, Loader2, MoveHorizontal, Play, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Clapperboard, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,130 +8,11 @@ import {
     Carousel,
     CarouselContent,
     CarouselItem,
-    useCarousel,
+    CarouselNext,
+    CarouselPrevious,
+    type CarouselApi,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
-
-/** Inline carousel arrows that hide themselves when all slides fit in view. */
-function CarouselNav({ className, variant = "light" }: { className?: string; variant?: "light" | "dark" }) {
-    const { scrollPrev, scrollNext, canScrollPrev, canScrollNext } = useCarousel();
-    if (!canScrollPrev && !canScrollNext) return null;
-
-    const isLight = variant === "light";
-    const btnBase =
-        "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors disabled:opacity-40";
-    const btnTheme = isLight
-        ? "border-accent bg-background/90 text-foreground hover:bg-accent hover:text-accent-foreground"
-        : "border-accent bg-primary-foreground/10 text-primary-foreground hover:bg-accent hover:text-accent-foreground";
-
-    return (
-        <div className={cn("flex items-center gap-2", className)}>
-            <button
-                type="button"
-                className={cn(btnBase, btnTheme)}
-                disabled={!canScrollPrev}
-                onClick={scrollPrev}
-                aria-label="Previous slide"
-            >
-                <ArrowLeft className="h-4 w-4" />
-            </button>
-            <button
-                type="button"
-                className={cn(btnBase, btnTheme)}
-                disabled={!canScrollNext}
-                onClick={scrollNext}
-                aria-label="Next slide"
-            >
-                <ArrowRight className="h-4 w-4" />
-            </button>
-        </div>
-    );
-}
-
-function CarouselProgress({
-    total,
-    className,
-    variant = "light",
-}: {
-    total: number;
-    className?: string;
-    variant?: "light" | "dark";
-}) {
-    const { api } = useCarousel();
-    const [shownCount, setShownCount] = useState(0);
-
-    useEffect(() => {
-        if (!api) {
-            return;
-        }
-
-        const updateShownCount = () => {
-            const selectedSnap = api.selectedScrollSnap();
-            const slideRegistry = api.internalEngine().slideRegistry;
-            const snapSlides = slideRegistry[selectedSnap] ?? [];
-
-            if (snapSlides.length > 0) {
-                const maxSnapSlideIndex = Math.max(...snapSlides);
-                setShownCount(Math.min(total, maxSnapSlideIndex + 1));
-                return;
-            }
-
-            const snapCount = api.scrollSnapList().length;
-            if (snapCount > 0) {
-                const progressRatio = (selectedSnap + 1) / snapCount;
-                const fallbackShown = Math.max(1, Math.ceil(total * progressRatio));
-                setShownCount(Math.min(total, fallbackShown));
-                return;
-            }
-
-            setShownCount(total > 0 ? 1 : 0);
-        };
-
-        updateShownCount();
-        api.on("select", updateShownCount);
-        api.on("reInit", updateShownCount);
-
-        return () => {
-            api.off("select", updateShownCount);
-            api.off("reInit", updateShownCount);
-        };
-    }, [api, total]);
-
-    if (total <= 1) {
-        return null;
-    }
-
-    const toneClass =
-        variant === "light"
-            ? "text-muted-foreground border-border bg-background/75"
-            : "text-primary-foreground/75 border-primary-foreground/25 bg-primary-foreground/[0.08]";
-
-    return (
-        <p
-            className={cn(
-                "inline-flex items-center rounded-full border px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.14em] sm:px-2.5 sm:text-[0.58rem] sm:tracking-[0.16em]",
-                toneClass,
-                className,
-            )}
-        >
-            {shownCount}/{total}
-        </p>
-    );
-}
-
-function MobileSwipeHint({ className }: { className?: string }) {
-    return (
-        <p
-            className={cn(
-                "inline-flex items-center gap-1.5 font-body text-[0.56rem] uppercase tracking-[0.16em] sm:hidden",
-                className,
-            )}
-        >
-            <MoveHorizontal className="h-3.5 w-3.5" />
-            Swipe for more
-        </p>
-    );
-}
 
 function CollaborationBadge({
     className,
@@ -203,28 +84,60 @@ type StoryCollection = {
     id: string;
     title: string;
     subtitle: string;
+    description: string;
     story: string;
     highlights: string[];
     entries: StoryMedia[];
     track: string;
     isCollaboration: boolean;
+    client: string;
+    clientLogo: string;
+    location: string;
+    deliverables: string;
+    testimonial: { name: string; role: string; quote: string } | null;
 };
 
 type Orientation = "portrait" | "landscape" | "square";
 
 const IMAGE_WIDTHS = [640, 960, 1280];
-const IMAGE_SIZES = "(max-width: 768px) 92vw, (max-width: 1280px) 46vw, 31vw";
-const ALL_HIGHLIGHTS_CATEGORY = "All";
+/** Photo category sections shown first, in this order; anything else follows, uncategorized last. */
+const PHOTO_SECTION_ORDER = [
+    "Highlights",
+    "Hotels & Resorts",
+    "Hotels & Restaurants",
+    "Hotels",
+    "Restaurants",
+    "Travel",
+    "Experiences",
+    "Lifestyle",
+    "Food",
+    "Nature",
+];
+const PHOTO_UNCATEGORIZED = "More Frames";
 
-const stripMarkdownInline = (value: string): string => {
-    return value
-        .replace(/!\[[^\]]*]\([^)]*\)/g, "")
-        .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
-        .replace(/[_*`~>#-]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+const photoSectionRank = (category: string): number => {
+    const index = PHOTO_SECTION_ORDER.findIndex((entry) => entry.toLowerCase() === category.toLowerCase());
+    return index === -1 ? PHOTO_SECTION_ORDER.length : index;
 };
 
+const choosePhotoCategory = (categories: string[]): string => {
+    const cleaned = categories.map((value) => value.trim()).filter((value) => value.length > 0);
+    if (cleaned.length === 0) {
+        return PHOTO_UNCATEGORIZED;
+    }
+
+    let best: string | null = null;
+    let bestRank = Infinity;
+    for (const category of cleaned) {
+        const rank = photoSectionRank(category);
+        if (rank < PHOTO_SECTION_ORDER.length && rank < bestRank) {
+            bestRank = rank;
+            best = category;
+        }
+    }
+
+    return best ?? cleaned[0];
+};
 const slugify = (value: string): string => {
     return value
         .toLowerCase()
@@ -236,14 +149,6 @@ const trimOrEmpty = (value: string): string => value.trim();
 
 const dedupe = (values: string[]): string[] => {
     return Array.from(new Set(values.filter((value) => value.length > 0)));
-};
-
-const truncateText = (value: string, maxLength = 170): string => {
-    if (value.length <= maxLength) {
-        return value;
-    }
-
-    return `${value.slice(0, maxLength).trimEnd()}...`;
 };
 
 const isVideoAsset = (url: string, mime = ""): boolean => {
@@ -263,18 +168,6 @@ const isVideoMedia = (item: Pick<StoryMedia, "kind" | "mediaUrl" | "mime">): boo
     }
 
     return isVideoAsset(item.mediaUrl, item.mime);
-};
-
-export const selectShowcaseVideos = <T extends Pick<StoryMedia, "kind" | "mediaUrl" | "mime">>(
-    sourceMedia: T[],
-    hasSeparatedShowcase: boolean,
-    separatedVideos: T[],
-): T[] => {
-    if (hasSeparatedShowcase) {
-        return separatedVideos;
-    }
-
-    return sourceMedia.filter((item) => isVideoMedia(item));
 };
 
 const isBunnyVideo = (item: Pick<StoryMedia, "kind" | "provider" | "embedUrl">): boolean =>
@@ -369,24 +262,6 @@ const getOptimizedImageUrl = (url: string, width: number, height?: number): stri
     });
 };
 
-const getImageSrcSet = (url: string, height?: number): string | undefined => {
-    if (!isCloudinaryUrl(url)) {
-        return undefined;
-    }
-
-    return IMAGE_WIDTHS
-        .map((width) => `${getOptimizedImageUrl(url, width, height)} ${width}w`)
-        .join(", ");
-};
-
-const getImageSizes = (url: string): string | undefined => {
-    if (!isCloudinaryUrl(url)) {
-        return undefined;
-    }
-
-    return IMAGE_SIZES;
-};
-
 const hasMediaSource = (
     entry: Pick<StoryMedia, "mediaUrl" | "previewUrl" | "embedUrl" | "playbackUrl" | "thumbnailUrl">,
 ): boolean =>
@@ -443,6 +318,7 @@ const toStoryCollectionFromCms = (
         .map((entry) => toStoryMediaFromCms(entry))
         .filter((entry) => hasMediaSource(entry));
     const title = trimOrEmpty(collection.name);
+    const description = trimOrEmpty(collection.description);
     const story = trimOrEmpty(collection.story);
     const track = entries[0]?.track ?? resolveStoryTrack([], title, story, "", "");
     const insights = collection.insights.map((item) => item.trim()).filter((item) => item.length > 0);
@@ -450,12 +326,18 @@ const toStoryCollectionFromCms = (
     return {
         id: collection.id.trim() || `${slugify(title || "collection")}-${index + 1}`,
         title,
-        subtitle: `${entries.length} assets in this collection`,
+        subtitle: `${entries.length} ${entries.length === 1 ? "asset" : "assets"} in this collection`,
+        description,
         story,
         highlights: insights,
         entries,
         track,
         isCollaboration: collection.isCollaboration === true,
+        client: collection.client.trim(),
+        clientLogo: collection.clientLogo.trim(),
+        location: collection.location.trim(),
+        deliverables: collection.deliverables.trim(),
+        testimonial: collection.testimonial,
     };
 };
 
@@ -475,12 +357,18 @@ const buildCollections = (mediaItems: StoryMedia[]): StoryCollection[] => {
             return {
                 id: `${slugify(track || "collection")}-${index + 1}`,
                 title: track,
-                subtitle: `${entries.length} assets in this collection`,
+                subtitle: `${entries.length} ${entries.length === 1 ? "asset" : "assets"} in this collection`,
+                description: "",
                 story,
                 highlights: [],
                 entries,
                 track,
                 isCollaboration: entries.some((entry) => entry.isCollaboration),
+                client: "",
+                clientLogo: "",
+                location: "",
+                deliverables: "",
+                testimonial: null,
             };
         })
         .sort((a, b) => b.entries.length - a.entries.length);
@@ -513,44 +401,13 @@ const markdownComponents = {
     ),
 };
 
-const getCollectionPreviewGridClass = (count: number): string => {
-    if (count <= 1) {
-        return "grid-cols-1";
-    }
-
-    if (count <= 4) {
-        return "grid-cols-2";
-    }
-
-    if (count <= 6) {
-        return "grid-cols-2 md:grid-cols-3";
-    }
-
-    return "grid-cols-2 md:grid-cols-4";
-};
-
-const getCollectionPreviewAspectClass = (count: number): string => {
-    if (count <= 1) {
-        return "aspect-[16/10] md:aspect-[16/9]";
-    }
-
-    if (count <= 2) {
-        return "aspect-[4/3] md:aspect-[16/10]";
-    }
-
-    if (count <= 4) {
-        return "aspect-[4/3]";
-    }
-
-    return "aspect-square";
-};
-
 const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
-    const [selectedCollection, setSelectedCollection] = useState<StoryCollection | null>(null);
     const [selectedMedia, setSelectedMedia] = useState<StoryMedia | null>(null);
-    const [selectedHighlightCategory, setSelectedHighlightCategory] = useState(ALL_HIGHLIGHTS_CATEGORY);
     const [mediaSequence, setMediaSequence] = useState<StoryMedia[]>([]);
     const [mediaSequenceIndex, setMediaSequenceIndex] = useState(-1);
+    const [collectionApi, setCollectionApi] = useState<CarouselApi>();
+    const [currentCollectionSlide, setCurrentCollectionSlide] = useState(1);
+    const [activePhotoCategory, setActivePhotoCategory] = useState("");
     const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number } | null>(null);
     const [showMobileMediaDetails, setShowMobileMediaDetails] = useState(false);
     const [mediaLoaded, setMediaLoaded] = useState(false);
@@ -625,50 +482,71 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
         return source;
     }, [sourceMedia, hasSeparatedShowcase, separatedHighlights, collections]);
 
-    const highlightCategories = useMemo(() => {
-        const categories = new Set<string>();
-
+    const photoSections = useMemo<Array<[string, StoryMedia[]]>>(() => {
+        const groups = new Map<string, StoryMedia[]>();
         for (const item of highlights) {
-            for (const category of item.categories) {
-                const normalized = category.trim();
-                if (normalized.length > 0) {
-                    categories.add(normalized);
-                }
-            }
+            const category = choosePhotoCategory(item.categories);
+            const current = groups.get(category) ?? [];
+            current.push(item);
+            groups.set(category, current);
         }
 
-        return [ALL_HIGHLIGHTS_CATEGORY, ...Array.from(categories)];
+        return Array.from(groups.entries()).sort(([a], [b]) => {
+            if (a === PHOTO_UNCATEGORIZED) return 1;
+            if (b === PHOTO_UNCATEGORIZED) return -1;
+            const rankDiff = photoSectionRank(a) - photoSectionRank(b);
+            return rankDiff !== 0 ? rankDiff : a.localeCompare(b);
+        });
     }, [highlights]);
-
-    const filteredHighlights = useMemo(() => {
-        if (selectedHighlightCategory === ALL_HIGHLIGHTS_CATEGORY) {
-            return highlights;
-        }
-
-        return highlights.filter((item) =>
-            item.categories.some((category) => category.trim() === selectedHighlightCategory),
-        );
-    }, [highlights, selectedHighlightCategory]);
-
-    const videos = useMemo(
-        () => selectShowcaseVideos(sourceMedia, hasSeparatedShowcase, separatedVideos),
-        [sourceMedia, hasSeparatedShowcase, separatedVideos],
-    );
 
     const hasCollections = collections.length > 0;
     const hasHighlights = highlights.length > 0;
-
-    useEffect(() => {
-        if (!highlightCategories.includes(selectedHighlightCategory)) {
-            setSelectedHighlightCategory(ALL_HIGHLIGHTS_CATEGORY);
-        }
-    }, [highlightCategories, selectedHighlightCategory]);
+    const activePhotoSection = photoSections.find(([category]) => category === activePhotoCategory) ?? photoSections[0];
+    const activePhotos = activePhotoSection?.[1] ?? [];
+    const activeHorizontalPhotos = activePhotos.filter((item) => item.width && item.height && item.width > item.height);
+    const activeVerticalPhotos = activePhotos.filter((item) => !item.width || !item.height || item.width <= item.height);
+    const activeCollectionIndex = collections.length > 0
+        ? Math.min(Math.max(currentCollectionSlide - 1, 0), collections.length - 1)
+        : -1;
+    const activeCollection = activeCollectionIndex >= 0 ? collections[activeCollectionIndex] : null;
 
     useEffect(() => {
         setNaturalDimensions(null);
         setShowMobileMediaDetails(false);
         setMediaLoaded(false);
     }, [selectedMedia?.id]);
+
+    useEffect(() => {
+        if (photoSections.length === 0) {
+            if (activePhotoCategory) {
+                setActivePhotoCategory("");
+            }
+            return;
+        }
+
+        if (!photoSections.some(([category]) => category === activePhotoCategory)) {
+            setActivePhotoCategory(photoSections[0][0]);
+        }
+    }, [activePhotoCategory, photoSections]);
+
+    useEffect(() => {
+        if (!collectionApi) {
+            return;
+        }
+
+        const onSelect = () => {
+            setCurrentCollectionSlide(collectionApi.selectedScrollSnap() + 1);
+        };
+
+        onSelect();
+        collectionApi.on("select", onSelect);
+        collectionApi.on("reInit", onSelect);
+
+        return () => {
+            collectionApi.off("select", onSelect);
+            collectionApi.off("reInit", onSelect);
+        };
+    }, [collectionApi]);
 
     const openMedia = (entry: StoryMedia, sequence?: StoryMedia[]) => {
         const nextSequence = sequence && sequence.length > 0 ? sequence : [];
@@ -691,11 +569,6 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
         }
 
         setSelectedMedia(entry);
-    };
-
-    const openCollectionEntry = (entry: StoryMedia) => {
-        setSelectedCollection(null);
-        openMedia(entry, selectedCollection?.entries ?? []);
     };
 
     const canStepMedia = mediaSequence.length > 1 && mediaSequenceIndex >= 0;
@@ -811,12 +684,9 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const isMobileLandscapeMedia = mediaOrientation !== "portrait";
 
     return (
-        <section id="portfolio" className="relative overflow-hidden py-14 lg:py-18">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,hsl(var(--accent)/0.18),transparent_35%),radial-gradient(circle_at_92%_0%,hsl(var(--foreground)/0.06),transparent_28%)]" />
-            <div className="absolute inset-0 opacity-[0.12] [background-image:linear-gradient(to_right,hsl(var(--foreground)/0.16)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--foreground)/0.16)_1px,transparent_1px)] [background-size:44px_44px]" />
-
+        <section id="portfolio" className="relative overflow-hidden bg-background py-10 lg:py-12">
             <div className="container relative mx-auto px-6 lg:px-10">
-                {(sectionName || sectionTitle || sectionText) && (
+                {!hasCollections && (sectionName || sectionTitle || sectionText) && (
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -824,17 +694,13 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                         transition={{ duration: 0.75 }}
                         className="mx-auto mb-9 max-w-3xl text-center"
                     >
-                        <p className="mb-3 inline-flex items-center gap-2 border border-foreground/25 bg-background/80 px-3 py-1.5 font-body text-[0.65rem] uppercase tracking-[0.22em] text-foreground/85 backdrop-blur-sm">
-                            <Sparkles className="h-3.5 w-3.5 text-accent" />
-                            Editorial Storyboard
-                        </p>
                         {sectionName && (
-                            <p className="mb-3 font-body text-[0.62rem] uppercase tracking-[0.26em] text-muted-foreground">
+                            <p className="mb-3 font-body text-sm uppercase tracking-[0.22em] text-muted-foreground">
                                 {sectionName}
                             </p>
                         )}
                         {sectionTitle && (
-                            <h2 className="font-display text-4xl font-light italic leading-[1.06] text-foreground sm:text-5xl lg:text-6xl">
+                            <h2 className="font-display text-3xl font-light italic leading-[1.08] text-foreground sm:text-4xl lg:text-5xl">
                                 {sectionTitle}
                             </h2>
                         )}
@@ -847,542 +713,472 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                 )}
 
                 {hasCollections && (
-                    <Carousel
-                        opts={{ align: "start", slidesToScroll: "auto" }}
-                        className="w-full"
-                    >
-                    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                Collections
-                            </p>
-                            <h3 className="font-display text-3xl font-light italic text-foreground sm:text-4xl">
-                                Narrative-First Campaign Sets
+                    <div id="collections" className="w-full scroll-mt-24">
+                        <div className="mb-6 flex items-end justify-between gap-4">
+                            <h3 className="font-display text-2xl font-light italic text-foreground sm:text-3xl">
+                                Case Studies
                             </h3>
-                            <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-muted-foreground">
-                                Full multi-asset shoots — photo and video bundled around a single stay.
+                            <p className="hidden font-body text-[0.62rem] uppercase tracking-[0.2em] text-muted-foreground sm:block">
+                                Client work
                             </p>
                         </div>
-                        <div className="flex items-center gap-2">
+
+                        <Carousel
+                            setApi={setCollectionApi}
+                            opts={{ align: "start", loop: collections.length > 1 }}
+                            className="w-full"
+                        >
                             {collections.length > 1 && (
-                                <MobileSwipeHint className="text-muted-foreground" />
+                                <div className="mb-5 flex items-center gap-3">
+                                    <p className="inline-flex items-center gap-2 font-body text-[0.62rem] uppercase tracking-[0.22em] text-muted-foreground">
+                                        <ArrowLeft className="h-3.5 w-3.5" />
+                                        Swipe for more
+                                    </p>
+                                    <p className="rounded-full border border-border bg-background px-3 py-1 font-body text-[0.65rem] text-muted-foreground shadow-sm">
+                                        {currentCollectionSlide} / {collections.length}
+                                    </p>
+                                    <div className="ml-auto flex items-center gap-3">
+                                        <CarouselPrevious className="!static !left-auto !top-auto !h-10 !w-10 !translate-y-0 rounded-full border-accent/70 bg-background text-foreground" />
+                                        <CarouselNext className="!static !right-auto !top-auto !h-10 !w-10 !translate-y-0 rounded-full border-accent/70 bg-background text-foreground" />
+                                    </div>
+                                </div>
                             )}
-                            <CarouselProgress total={collections.length} variant="light" />
-                            <CarouselNav variant="light" />
-                        </div>
-                    </div>
+                            <CarouselContent className="-ml-4 items-stretch">
+                                {collections.map((collection, index) => {
+                                    const coverEntry = collection.entries[0];
+                                    const coverPreviewUrl = getPreviewUrl(coverEntry) || coverEntry.thumbnailUrl || coverEntry.mediaUrl;
+                                    const isActive = index === activeCollectionIndex;
 
-                    <CarouselContent className="-ml-4">
-                        {collections.map((collection, index) => {
-                            const coverEntry = collection.entries[0];
-                            const coverPreviewUrl =
-                                getPreviewUrl(coverEntry) || coverEntry.thumbnailUrl || coverEntry.mediaUrl;
-                            const coverIsVideo = isVideoMedia(coverEntry);
-                            const shouldPrioritizePreview = index < 2;
-
-                            return (
-                                <CarouselItem
-                                    key={collection.id}
-                                    className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
-                                >
-                                <article className="group h-full">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedCollection(collection)}
-                                        className="block h-full w-full text-left"
-                                        aria-label={`Open collection details for ${collection.title}`}
-                                    >
-                                        <div className="relative overflow-hidden bg-muted aspect-[4/5] sm:aspect-[3/4]">
-                                            {canUseInlineVideoPreview(coverEntry) ? (
-                                                <video
-                                                    src={getVideoPlaybackUrl(coverEntry)}
-                                                    muted
-                                                    loop
-                                                    autoPlay
-                                                    playsInline
-                                                    preload={shouldPrioritizePreview ? "auto" : "metadata"}
-                                                    poster={coverPreviewUrl}
-                                                    style={getMediaObjectPosition(coverEntry)}
-                                                    className="absolute inset-0 h-full w-full object-cover scale-[1.04] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.08]"
-                                                />
-                                            ) : (
-                                                <img
-                                                    src={getOptimizedImageUrl(coverPreviewUrl, IMAGE_WIDTHS[1])}
-                                                    srcSet={getImageSrcSet(coverPreviewUrl)}
-                                                    sizes={getImageSizes(coverPreviewUrl)}
-                                                    alt={coverEntry.title}
-                                                    loading={shouldPrioritizePreview ? "eager" : "lazy"}
-                                                    decoding="async"
-                                                    fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
-                                                    {...protectedImageProps}
-                                                    style={getMediaObjectPosition(coverEntry)}
-                                                    className="absolute inset-0 h-full w-full object-cover scale-[1.04] transition-transform duration-[1.2s] ease-out group-hover:scale-[1.08]"
-                                                />
-                                            )}
-                                            {!canUseInlineVideoPreview(coverEntry) && <PhotoProtectionOverlay />}
-
-                                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 via-[45%] to-transparent" />
-                                            <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-500 group-hover:bg-black/10" />
-
-                                            {coverIsVideo && (
-                                                <span className="absolute left-3 top-3 z-[2] inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground backdrop-blur-sm">
-                                                    <Clapperboard className="h-3 w-3 text-accent" />
-                                                    Video
-                                                </span>
-                                            )}
-
-                                            <div className="absolute right-3 top-3 z-[2] flex flex-col items-end gap-1.5">
-                                                {collection.isCollaboration && <CollaborationBadge variant="light" />}
-                                                <span className="inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 font-body text-[0.52rem] uppercase tracking-[0.15em] text-foreground backdrop-blur-sm">
-                                                    {collection.entries.length} assets
-                                                </span>
-                                            </div>
-
-                                            <div className="absolute inset-x-0 bottom-0 z-[2] p-4 sm:p-5">
-                                                {collection.title && (
-                                                    <h4 className="font-display text-2xl font-light italic leading-tight text-white sm:text-3xl drop-shadow-sm">
-                                                        {collection.title}
-                                                    </h4>
-                                                )}
-                                                {collection.story && (
-                                                    <p className="mt-1.5 font-body text-[0.8rem] leading-relaxed text-white/80 line-clamp-2">
-                                                        {truncateText(collection.story, 120)}
-                                                    </p>
-                                                )}
-
-                                                <div className="mt-3 flex items-center justify-between">
-                                                    <span className="inline-flex items-center gap-1.5 font-body text-[0.62rem] uppercase tracking-[0.16em] text-white/90 transition-all duration-300 group-hover:gap-2.5">
-                                                        Explore Collection
-                                                        <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                    </button>
-                                </article>
-                                </CarouselItem>
-                            );
-                        })}
-                    </CarouselContent>
-                </Carousel>
-                )}
-
-                {hasCollections && hasHighlights && (
-                    <div className="my-10 h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
-                )}
-
-                {hasHighlights && (
-                    <Carousel
-                        opts={{ align: "start", slidesToScroll: "auto" }}
-                        className="w-full"
-                    >
-                    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                Highlights
-                            </p>
-                            <h3 className="font-display text-3xl font-light italic text-foreground sm:text-4xl">
-                                Signature Story Frames
-                            </h3>
-                            <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-muted-foreground">
-                                Standalone hero frames that anchor a campaign or social post.
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {filteredHighlights.length > 1 && (
-                                <MobileSwipeHint className="text-muted-foreground" />
-                            )}
-                            <CarouselProgress total={filteredHighlights.length} variant="light" />
-                            <CarouselNav variant="light" />
-                        </div>
-                    </div>
-
-                    {highlightCategories.length > 1 && (
-                        <div className="mb-4 flex flex-wrap gap-2">
-                            {highlightCategories.map((category) => (
-                                <button
-                                    key={category}
-                                    type="button"
-                                    onClick={() => setSelectedHighlightCategory(category)}
-                                    className={`px-3 py-1.5 font-body text-[0.58rem] uppercase tracking-[0.14em] transition ${
-                                        selectedHighlightCategory === category
-                                            ? "border border-foreground bg-foreground text-background"
-                                            : "border border-border bg-background/75 text-muted-foreground hover:border-foreground hover:text-foreground"
-                                    }`}
-                                >
-                                    {category}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                        {filteredHighlights.length > 0 ? (
-                            <CarouselContent className="-ml-4">
-                                {filteredHighlights.map((item, index) => {
-                                    const highlightPreviewUrl =
-                                        getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
-                                    const shouldPrioritizePreview = index < 2;
-                                    const goalAndStyle = [item.goal, item.style]
-                                        .filter((value) => value.length > 0)
-                                        .join(" / ");
                                     return (
                                         <CarouselItem
-                                            key={item.id}
-                                            className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
+                                            key={collection.id}
+                                            className="flex basis-[94%] pl-4 sm:basis-[82%] md:basis-[70%] lg:basis-[48%]"
                                         >
-                                            <motion.button
-                                                type="button"
-                                                onClick={() => openMedia(item, filteredHighlights)}
-                                                className="group flex h-full w-full flex-col overflow-hidden border border-border bg-card text-left transition-all duration-300 hover:-translate-y-1 hover:border-accent"
-                                                aria-label={`Open highlight details for ${item.title}`}
-                                            >
-                                                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                                                    {canUseInlineVideoPreview(item) ? (
-                                                        <video
-                                                            src={getVideoPlaybackUrl(item)}
-                                                            muted
-                                                            loop
-                                                            autoPlay
-                                                            playsInline
-                                                            preload={shouldPrioritizePreview ? "auto" : "metadata"}
-                                                            poster={highlightPreviewUrl}
-                                                            style={getMediaObjectPosition(item)}
-                                                            className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
-                                                        />
-                                                    ) : (
-                                                        <img
-                                                            src={getOptimizedImageUrl(
-                                                                highlightPreviewUrl,
-                                                                IMAGE_WIDTHS[1],
-                                                            )}
-                                                            srcSet={getImageSrcSet(
-                                                                highlightPreviewUrl,
-                                                            )}
-                                                            sizes={getImageSizes(
-                                                                highlightPreviewUrl,
-                                                            )}
-                                                            alt={item.title}
-                                                            loading={shouldPrioritizePreview ? "eager" : "lazy"}
-                                                            decoding="async"
-                                                            fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
-                                                            {...protectedImageProps}
-                                                            style={getMediaObjectPosition(item)}
-                                                            className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
-                                                        />
-                                                    )}
-                                                    {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
-                                                    <div className="pointer-events-none absolute inset-0 bg-black/24" />
-                                                    {item.hook && (
-                                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[50%] bg-[linear-gradient(0deg,rgba(8,8,8,0.74)_0%,rgba(8,8,8,0.34)_48%,rgba(8,8,8,0)_100%)]" />
-                                                    )}
-                                                    {(item.track || item.isCollaboration) && (
-                                                        <div className="absolute left-3 top-3 flex flex-wrap items-start gap-1.5">
-                                                            {item.track && (
-                                                                <span className="bg-background/90 px-2 py-1 font-body text-[0.52rem] uppercase tracking-[0.16em] text-foreground">
-                                                                    {item.track}
-                                                                </span>
-                                                            )}
-                                                            {item.isCollaboration && <CollaborationBadge variant="light" />}
-                                                        </div>
-                                                    )}
-                                                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                                                        {item.hook && (
-                                                            <>
-                                                                <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/80">
-                                                                    Hook
-                                                                </p>
-                                                                <p className="mt-1 font-display text-xl font-light italic leading-tight text-primary-foreground">
-                                                                    {item.hook}
-                                                                </p>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-1 flex-col p-4">
-                                                    {item.title && (
-                                                        <h4 className="font-display text-2xl font-light leading-tight text-foreground">
-                                                            {item.title}
-                                                        </h4>
-                                                    )}
-                                                    {item.description && (
-                                                        <p className={`font-body text-sm leading-relaxed text-muted-foreground ${item.title ? "mt-2" : ""}`}>
-                                                            {truncateText(stripMarkdownInline(item.description), 170)}
-                                                        </p>
-                                                    )}
-                                                    {goalAndStyle && (
-                                                        <p className={`mt-auto font-body text-[0.62rem] uppercase tracking-[0.15em] text-foreground/75 ${item.title || item.description ? "pt-3" : ""}`}>
-                                                            {goalAndStyle}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </motion.button>
-                                        </CarouselItem>
-                                    );
-                                })}
-                            </CarouselContent>
-                        ) : (
-                            <p className="rounded-md border border-border bg-background/70 px-4 py-3 font-body text-sm text-muted-foreground">
-                                No highlights in the selected category.
-                            </p>
-                        )}
-                    </Carousel>
-                )}
-
-                {videos.length > 0 && (
-                    <div className="mt-14 overflow-hidden border border-foreground/20 bg-foreground text-primary-foreground">
-                        <div className="p-4 sm:p-5 lg:p-6">
-                            <Carousel
-                                opts={{ align: "start", slidesToScroll: "auto" }}
-                                className="w-full"
-                            >
-                            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                                <div>
-                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-primary-foreground/70">
-                                        Videos
-                                    </p>
-                                    <h3 className="font-display text-3xl font-light italic text-primary-foreground sm:text-4xl">
-                                        Cinematic Story Cuts
-                                    </h3>
-                                    <p className="mt-2 max-w-xl font-body text-sm leading-relaxed text-primary-foreground/70">
-                                        Short-form motion built for Reels, ads, and brand sites.
-                                    </p>
-                                </div>
-                                {videos.length > 1 && (
-                                    <MobileSwipeHint className="text-primary-foreground/70" />
-                                )}
-                                <div className="flex items-center gap-2">
-                                    <CarouselProgress total={videos.length} variant="dark" />
-                                    <CarouselNav variant="dark" />
-                                </div>
-                            </div>
-                                <CarouselContent className="-ml-4">
-                                    {videos.map((video, index) => {
-                                        const isPortrait = getOrientation(video.width, video.height) === "portrait";
-                                        const previewHeight = isPortrait ? 980 : 560;
-                                        const shouldPrioritizePreview = index < 2;
-                                        const videoPreviewUrl =
-                                            getPreviewUrl(video) ||
-                                            video.thumbnailUrl ||
-                                            video.mediaUrl;
-                                        const goalAndStyle = [video.goal, video.style]
-                                            .filter((value) => value.length > 0)
-                                            .join(" / ");
-
-                                        return (
-                                            <CarouselItem
-                                                key={video.id}
-                                                className="pl-4 basis-[88%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/4"
-                                            >
-                                                <motion.button
-                                                    type="button"
-                                                    onClick={() => openMedia(video, videos)}
-                                                    className="group flex h-full w-full flex-col overflow-hidden border border-primary-foreground/20 bg-primary-foreground/[0.06] text-left transition-all duration-300 hover:border-accent"
-                                                    aria-label={`Open video story details for ${video.title}`}
-                                                >
-                                                    <div className="relative aspect-[4/3] overflow-hidden bg-transparent">
-                                                        {canUseInlineVideoPreview(video) ? (
-                                                            <video
-                                                                src={getVideoPlaybackUrl(video)}
-                                                                muted
-                                                                loop
-                                                                autoPlay
-                                                                playsInline
-                                                                preload={shouldPrioritizePreview ? "auto" : "metadata"}
-                                                                poster={videoPreviewUrl}
-                                                                style={getMediaObjectPosition(video)}
-                                                                className="h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
-                                                            />
-                                                        ) : (
-                                                            <img
-                                                                src={getOptimizedImageUrl(
-                                                                    videoPreviewUrl,
-                                                                    IMAGE_WIDTHS[1],
-                                                                    previewHeight,
-                                                                )}
-                                                                srcSet={getImageSrcSet(
-                                                                    videoPreviewUrl,
-                                                                    previewHeight,
-                                                                )}
-                                                                sizes={getImageSizes(
-                                                                    videoPreviewUrl,
-                                                                )}
-                                                                alt={video.title}
-                                                                loading={shouldPrioritizePreview ? "eager" : "lazy"}
-                                                                decoding="async"
-                                                                fetchPriority={shouldPrioritizePreview ? "high" : "auto"}
-                                                                {...protectedImageProps}
-                                                                style={getMediaObjectPosition(video)}
-                                                                className="h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover:scale-[1.08]"
-                                                            />
-                                                        )}
-                                                        {!canUseInlineVideoPreview(video) && <PhotoProtectionOverlay />}
-                                                        {video.isCollaboration && (
-                                                            <CollaborationBadge variant="light" className="absolute left-3 top-3" />
-                                                        )}
-                                                        <span className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-primary-foreground/50 bg-primary-foreground/10 text-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:bg-accent group-hover:text-accent-foreground">
-                                                            <Play className="h-3.5 w-3.5" />
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="flex flex-1 flex-col p-3.5">
-                                                        {video.hook && (
-                                                            <>
-                                                                <p className="font-body text-[0.54rem] uppercase tracking-[0.16em] text-primary-foreground/72">
-                                                                    Campaign Hook
-                                                                </p>
-                                                                <h4 className="mt-1 font-display text-2xl font-light leading-tight text-primary-foreground">
-                                                                    {video.hook}
-                                                                </h4>
-                                                            </>
-                                                        )}
-                                                        {video.description && (
-                                                            <p className={`font-body text-xs leading-relaxed text-primary-foreground/78 ${video.hook ? "mt-2" : ""}`}>
-                                                                {truncateText(stripMarkdownInline(video.description), 130)}
-                                                            </p>
-                                                        )}
-                                                        {goalAndStyle && (
-                                                            <p className={`mt-auto font-body text-[0.58rem] uppercase tracking-[0.14em] text-primary-foreground/70 ${video.hook || video.description ? "pt-2.5" : ""}`}>
-                                                                {goalAndStyle}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </motion.button>
-                                            </CarouselItem>
-                                        );
-                                    })}
-                                </CarouselContent>
-                            </Carousel>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <Dialog
-                open={Boolean(selectedCollection)}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setSelectedCollection(null);
-                    }
-                }}
-            >
-                <DialogContent className="w-[97vw] max-w-5xl max-h-[90vh] overflow-y-auto p-0">
-                    {selectedCollection && (
-                        <div className="flex flex-col">
-                            <div className="p-5 pt-10 sm:p-8 sm:pt-12">
-                                <DialogHeader className="text-left pr-10 md:pr-14">
-                                    {selectedCollection.subtitle && (
-                                        <p className="font-body text-[0.6rem] uppercase tracking-[0.2em] text-muted-foreground">
-                                            {selectedCollection.subtitle}
-                                        </p>
-                                    )}
-                                    {selectedCollection.title && (
-                                        <DialogTitle className="break-words font-display text-3xl font-light italic leading-tight text-foreground sm:text-4xl">
-                                            {selectedCollection.title}
-                                        </DialogTitle>
-                                    )}
-                                    {selectedCollection.story && (
-                                        <p className="mt-1 max-w-2xl font-body text-sm leading-relaxed text-muted-foreground sm:text-base">
-                                            {selectedCollection.story}
-                                        </p>
-                                    )}
-                                </DialogHeader>
-
-                                {selectedCollection.highlights.length > 0 && (
-                                    <div className="mt-5 flex flex-wrap gap-2">
-                                        {selectedCollection.highlights.map((highlight) => (
-                                            <span
-                                                key={`${selectedCollection.id}-${highlight}`}
-                                                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs text-foreground/85"
-                                            >
-                                                <span className="h-1 w-1 rounded-full bg-accent" />
-                                                {highlight}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="border-t border-border bg-muted/20 p-4 sm:p-6">
-                                <div
-                                    className={`grid gap-3 ${getCollectionPreviewGridClass(
-                                        selectedCollection.entries.length,
-                                    )}`}
-                                >
-                                    {selectedCollection.entries.map((entry, index) => {
-                                        const previewUrl =
-                                            getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
-
-                                        return (
                                             <button
                                                 type="button"
-                                                key={entry.id}
-                                                onClick={() => openCollectionEntry(entry)}
-                                                onContextMenu={(event) => event.preventDefault()}
-                                                aria-label={`Open asset details for ${entry.title || "collection asset"}`}
-                                                className={`group/entry relative overflow-hidden bg-background ${getCollectionPreviewAspectClass(
-                                                    selectedCollection.entries.length,
-                                                )}`}
+                                                onClick={() => collectionApi?.scrollTo(index)}
+                                                className={cn(
+                                                    "group relative flex h-full min-h-[26rem] w-full flex-col overflow-hidden border bg-muted text-left transition-opacity lg:min-h-[24rem]",
+                                                    isActive ? "border-accent/70 opacity-100" : "border-border opacity-80",
+                                                )}
                                             >
-                                                {canUseInlineVideoPreview(entry) ? (
+                                                {canUseInlineVideoPreview(coverEntry) ? (
                                                     <video
-                                                        src={getVideoPlaybackUrl(entry)}
+                                                        src={getVideoPlaybackUrl(coverEntry)}
                                                         muted
                                                         loop
                                                         autoPlay
                                                         playsInline
                                                         preload="metadata"
-                                                        style={getMediaObjectPosition(entry)}
-                                                        className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover/entry:scale-[1.08]"
+                                                        poster={coverPreviewUrl}
+                                                        style={getMediaObjectPosition(coverEntry)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.04]"
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={getOptimizedImageUrl(coverPreviewUrl, IMAGE_WIDTHS[1])}
+                                                        alt={coverEntry.title}
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        {...protectedImageProps}
+                                                        style={getMediaObjectPosition(coverEntry)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.04]"
+                                                    />
+                                                )}
+                                                {!canUseInlineVideoPreview(coverEntry) && <PhotoProtectionOverlay />}
+
+                                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+                                                <div className="absolute right-4 top-4 z-[2] flex flex-col items-end gap-2">
+                                                    {collection.isCollaboration && <CollaborationBadge />}
+                                                    <span className="rounded-full bg-white/92 px-4 py-2 font-body text-[0.62rem] uppercase tracking-[0.18em] text-foreground shadow-sm backdrop-blur-sm">
+                                                        {collection.entries.length} assets
+                                                    </span>
+                                                </div>
+
+                                                {isVideoMedia(coverEntry) && (
+                                                    <span className="absolute left-4 top-4 z-[2] inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 font-body text-[0.56rem] uppercase tracking-[0.14em] text-foreground backdrop-blur-sm">
+                                                        <Clapperboard className="h-3 w-3 text-accent" />
+                                                        Video
+                                                    </span>
+                                                )}
+
+                                                <div className="relative z-[2] mt-auto p-5 sm:p-6">
+                                                    <p className="mb-2 font-body text-[0.58rem] uppercase tracking-[0.2em] text-white/75">
+                                                        Case Study {String(index + 1).padStart(2, "0")}
+                                                    </p>
+                                                    <h4 className="font-display text-3xl font-light italic leading-[1.08] text-white sm:text-4xl">
+                                                        {collection.client || collection.title}
+                                                    </h4>
+                                                    {(collection.location || collection.track) && (
+                                                        <p className="mt-3 font-body text-[0.62rem] uppercase tracking-[0.18em] text-white/75">
+                                                            {collection.location || collection.track}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        </CarouselItem>
+                                    );
+                                })}
+                            </CarouselContent>
+                        </Carousel>
+
+                        {activeCollection && (
+                            <article className="mt-8 border-t border-border pt-7 lg:grid lg:grid-cols-[minmax(18rem,0.34fr)_minmax(0,0.66fr)] lg:gap-10">
+                                <div className="space-y-5">
+                                    <div>
+                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.24em] text-accent">
+                                            Selected collection
+                                        </p>
+                                        <h4 className="mt-2 font-display text-3xl font-light italic leading-[1.05] text-foreground sm:text-4xl">
+                                            {activeCollection.client || activeCollection.title}
+                                        </h4>
+                                    </div>
+
+                                    {(activeCollection.location || activeCollection.track) && (
+                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                            {activeCollection.location || activeCollection.track}
+                                        </p>
+                                    )}
+
+                                    {activeCollection.description && (
+                                        <p className="font-body text-sm leading-relaxed text-muted-foreground">
+                                            {activeCollection.description}
+                                        </p>
+                                    )}
+
+                                    {activeCollection.story && (
+                                        <p className="font-body text-sm leading-relaxed text-muted-foreground">
+                                            {activeCollection.story}
+                                        </p>
+                                    )}
+
+                                    <dl className="grid grid-cols-2 gap-4 border-y border-border py-3">
+                                        <div>
+                                            <dt className="font-body text-[0.56rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                Assets
+                                            </dt>
+                                            <dd className="mt-1 font-body text-sm text-foreground">
+                                                {activeCollection.entries.length}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt className="font-body text-[0.56rem] uppercase tracking-[0.18em] text-muted-foreground">
+                                                Deliverables
+                                            </dt>
+                                            <dd className="mt-1 font-body text-xs leading-snug text-foreground/80">
+                                                {activeCollection.deliverables
+                                                    ? activeCollection.deliverables
+                                                    : `${activeCollection.entries.length} ${activeCollection.entries.length === 1 ? "asset" : "assets"} - photo & video`}
+                                            </dd>
+                                        </div>
+                                    </dl>
+
+                                    {activeCollection.testimonial && (
+                                        <figure>
+                                            <div className="flex items-center gap-4">
+                                                {activeCollection.clientLogo && (
+                                                    <img
+                                                        src={activeCollection.clientLogo}
+                                                        alt={activeCollection.testimonial.name || activeCollection.client || "Feedback source"}
+                                                        loading="lazy"
+                                                        {...protectedImageProps}
+                                                        className="h-24 w-24 shrink-0 rounded-full border border-border bg-white object-cover shadow-sm sm:h-28 sm:w-28"
+                                                    />
+                                                )}
+                                                <div className="min-w-0">
+                                                    {(activeCollection.client || activeCollection.title) && (
+                                                        <p className="font-body text-[0.62rem] uppercase tracking-[0.2em] text-accent">
+                                                            {activeCollection.client || activeCollection.title}
+                                                        </p>
+                                                    )}
+                                                    {(activeCollection.testimonial.name || activeCollection.testimonial.role) && (
+                                                        <figcaption className="mt-2 font-body text-[0.64rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                            {activeCollection.testimonial.name}
+                                                            {activeCollection.testimonial.name && activeCollection.testimonial.role ? " / " : ""}
+                                                            {activeCollection.testimonial.role}
+                                                        </figcaption>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 border-l border-accent pl-4">
+                                                <blockquote className="font-display text-lg font-light italic leading-snug text-foreground/88">
+                                                    {activeCollection.testimonial.quote}
+                                                </blockquote>
+                                            </div>
+                                        </figure>
+                                    )}
+
+                                    {!activeCollection.testimonial && activeCollection.clientLogo && (
+                                        <div className="flex items-center gap-3 border-y border-border py-3">
+                                            <img
+                                                src={activeCollection.clientLogo}
+                                                alt={activeCollection.client || "Client logo"}
+                                                loading="lazy"
+                                                {...protectedImageProps}
+                                                className="h-16 w-16 shrink-0 rounded-full border border-border bg-white object-cover"
+                                            />
+                                            {(activeCollection.client || activeCollection.title) && (
+                                                <p className="font-body text-[0.6rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                    {activeCollection.client || activeCollection.title}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeCollection.highlights.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {activeCollection.highlights.map((highlight) => (
+                                                <span
+                                                    key={`${activeCollection.id}-${highlight}`}
+                                                    className="border border-border px-2.5 py-1 font-body text-[0.6rem] uppercase tracking-[0.12em] text-foreground/80"
+                                                >
+                                                    {highlight}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-7 grid grid-cols-2 gap-2 sm:gap-3 lg:mt-0 lg:grid-cols-4">
+                                    {activeCollection.entries.map((entry, entryIndex) => {
+                                        const previewUrl = getPreviewUrl(entry) || entry.thumbnailUrl || entry.mediaUrl;
+                                        const isFeature = entryIndex === 0;
+                                        const tileClassName = isFeature
+                                                ? "col-span-2 row-span-2 aspect-[4/3] lg:aspect-auto"
+                                                : "aspect-[4/5]";
+
+                                        const mediaPreview = canUseInlineVideoPreview(entry) ? (
+                                            <video
+                                                src={getVideoPlaybackUrl(entry)}
+                                                muted
+                                                loop
+                                                autoPlay
+                                                playsInline
+                                                preload="metadata"
+                                                poster={previewUrl}
+                                                style={getMediaObjectPosition(entry)}
+                                                className="absolute inset-0 h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={getOptimizedImageUrl(previewUrl, isFeature ? IMAGE_WIDTHS[1] : IMAGE_WIDTHS[0])}
+                                                alt={entry.title}
+                                                loading="lazy"
+                                                decoding="async"
+                                                {...protectedImageProps}
+                                                style={getMediaObjectPosition(entry)}
+                                                className="absolute inset-0 h-full w-full object-cover"
+                                            />
+                                        );
+
+                                        const mediaTile = (
+                                            <>
+                                                {mediaPreview}
+                                                {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
+                                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+
+                                                {isVideoMedia(entry) && (
+                                                    <span className="absolute left-2 top-2 z-[2] inline-flex items-center gap-1 bg-white/90 px-2 py-1 font-body text-[0.54rem] uppercase tracking-[0.12em] text-foreground backdrop-blur-sm">
+                                                        <Clapperboard className="h-3 w-3 text-accent" />
+                                                        Video
+                                                    </span>
+                                                )}
+                                            </>
+                                        );
+
+                                        return isVideoMedia(entry) ? (
+                                            <button
+                                                key={entry.id}
+                                                type="button"
+                                                onClick={() => openMedia(entry, activeCollection.entries.filter((item) => isVideoMedia(item)))}
+                                                className={cn("group/media relative overflow-hidden bg-muted text-left", tileClassName)}
+                                                aria-label={`Play ${entry.title || activeCollection.title || "collection video"}`}
+                                            >
+                                                {mediaTile}
+                                            </button>
+                                        ) : (
+                                            <figure
+                                                key={entry.id}
+                                                className={cn("group/media relative overflow-hidden bg-muted text-left", tileClassName)}
+                                            >
+                                                {mediaTile}
+                                            </figure>
+                                        );
+                                    })}
+                                </div>
+                            </article>
+                        )}
+
+                    </div>
+                )}
+
+                {hasCollections && hasHighlights && (
+                    <div className="my-10 h-px w-full bg-border/80" />
+                )}
+
+                {hasHighlights && (
+                    <div id="photos" className="w-full scroll-mt-24">
+                        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                            <div>
+                                <h3 className="font-display text-2xl font-light italic text-foreground sm:text-3xl">
+                                    Photography
+                                </h3>
+                            </div>
+                            <p className="inline-flex items-center gap-1.5 font-body text-[0.56rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                <Lock className="h-3 w-3" />
+                                View-only gallery
+                            </p>
+                        </div>
+
+                        <div className="-mx-6 mb-6 overflow-x-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            <div className="flex min-w-max items-center gap-2">
+                                {photoSections.map(([category, photos]) => {
+                                    const isActive = category === activePhotoSection?.[0];
+
+                                    return (
+                                        <button
+                                            key={category}
+                                            type="button"
+                                            onClick={() => setActivePhotoCategory(category)}
+                                            className={cn(
+                                                "inline-flex items-center gap-2 border px-3.5 py-2 font-body text-[0.62rem] uppercase tracking-[0.16em] transition-colors",
+                                                isActive
+                                                    ? "border-foreground bg-foreground text-background"
+                                                    : "border-border bg-background text-muted-foreground hover:border-accent hover:text-foreground",
+                                            )}
+                                        >
+                                            {category}
+                                            <span className={cn("text-[0.56rem]", isActive ? "text-background/70" : "text-muted-foreground")}>
+                                                {photos.length}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {activePhotoSection && (
+                            <div>
+                                <div className="mb-4 flex items-center gap-4">
+                                    <h4 className="font-body text-xs font-medium uppercase tracking-[0.24em] text-foreground">
+                                        {activePhotoSection[0]}
+                                    </h4>
+                                    <span className="h-px flex-1 bg-border" />
+                                    <span className="font-body text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                        {activePhotos.length} {activePhotos.length === 1 ? "frame" : "frames"}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-6 xl:grid-cols-7">
+                                    {activeVerticalPhotos.map((item) => {
+                                        const photoPreviewUrl = getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
+
+                                        return (
+                                            <figure
+                                                key={item.id}
+                                                onContextMenu={(event) => event.preventDefault()}
+                                                className="group relative aspect-[3/4] select-none overflow-hidden bg-muted"
+                                            >
+                                                {canUseInlineVideoPreview(item) ? (
+                                                    <video
+                                                        src={getVideoPlaybackUrl(item)}
+                                                        muted
+                                                        loop
+                                                        autoPlay
+                                                        playsInline
+                                                        preload="metadata"
+                                                        poster={photoPreviewUrl}
+                                                        style={getMediaObjectPosition(item)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
                                                     />
                                                 ) : (
                                                     <img
                                                         src={getOptimizedImageUrl(
-                                                            previewUrl,
-                                                            IMAGE_WIDTHS[1],
+                                                            photoPreviewUrl,
+                                                            320,
+                                                            420,
                                                         )}
-                                                        srcSet={getImageSrcSet(
-                                                            previewUrl,
-                                                        )}
-                                                        sizes={getImageSizes(
-                                                            previewUrl,
-                                                        )}
-                                                        alt={entry.title}
+                                                        alt={item.title}
                                                         loading="lazy"
                                                         decoding="async"
                                                         {...protectedImageProps}
-                                                        style={getMediaObjectPosition(entry)}
-                                                        className="absolute inset-0 h-full w-full object-cover scale-[1.03] transition-transform duration-700 group-hover/entry:scale-[1.08]"
+                                                        style={getMediaObjectPosition(item)}
+                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
                                                     />
                                                 )}
-                                                {!canUseInlineVideoPreview(entry) && <PhotoProtectionOverlay />}
-                                                <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-300 group-hover/entry:bg-black/10" />
-
-                                                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover/entry:opacity-100">
-                                                    {entry.title && (
-                                                        <p className="font-body text-xs text-white drop-shadow-sm">{entry.title}</p>
-                                                    )}
-                                                </div>
-
-                                                <span className="absolute left-2 top-2 z-[2] grid h-6 w-6 place-items-center rounded-full bg-white/80 font-body text-[0.56rem] font-medium text-foreground backdrop-blur-sm">
-                                                    {String(index + 1).padStart(2, "0")}
-                                                </span>
-
-                                                {isVideoMedia(entry) && (
-                                                    <span className="absolute right-2 top-2 z-[2] grid h-6 w-6 place-items-center rounded-full bg-white/80 backdrop-blur-sm">
-                                                        <Play className="h-2.5 w-2.5 text-foreground" />
-                                                    </span>
+                                                {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
+                                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-70 transition-opacity group-hover:opacity-100" />
+                                                {item.isCollaboration && (
+                                                    <CollaborationBadge variant="light" className="absolute left-1.5 top-1.5 z-[2]" />
                                                 )}
-                                            </button>
+                                            </figure>
                                         );
                                     })}
                                 </div>
+
+                                {activeHorizontalPhotos.length > 0 && (
+                                    <div className="mt-8">
+                                        <div className="mb-4 flex items-center gap-4">
+                                            <h4 className="font-body text-xs font-medium uppercase tracking-[0.22em] text-foreground">
+                                                Horizontal Frames
+                                            </h4>
+                                            <span className="h-px flex-1 bg-border" />
+                                            <span className="font-body text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground">
+                                                {activeHorizontalPhotos.length} {activeHorizontalPhotos.length === 1 ? "frame" : "frames"}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+                                            {activeHorizontalPhotos.map((item) => {
+                                                const photoPreviewUrl = getPreviewUrl(item) || item.thumbnailUrl || item.mediaUrl;
+
+                                                return (
+                                                    <figure
+                                                        key={item.id}
+                                                        onContextMenu={(event) => event.preventDefault()}
+                                                        className="group relative aspect-[4/3] select-none overflow-hidden bg-muted"
+                                                    >
+                                                        {canUseInlineVideoPreview(item) ? (
+                                                            <video
+                                                                src={getVideoPlaybackUrl(item)}
+                                                                muted
+                                                                loop
+                                                                autoPlay
+                                                                playsInline
+                                                                preload="metadata"
+                                                                poster={photoPreviewUrl}
+                                                                style={getMediaObjectPosition(item)}
+                                                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                                                            />
+                                                        ) : (
+                                                            <img
+                                                                src={getOptimizedImageUrl(photoPreviewUrl, 420, 320)}
+                                                                alt={item.title}
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                                {...protectedImageProps}
+                                                                style={getMediaObjectPosition(item)}
+                                                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                                                            />
+                                                        )}
+                                                        {!canUseInlineVideoPreview(item) && <PhotoProtectionOverlay />}
+                                                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-70 transition-opacity group-hover:opacity-100" />
+                                                        {item.isCollaboration && (
+                                                            <CollaborationBadge variant="light" className="absolute left-1.5 top-1.5 z-[2]" />
+                                                        )}
+                                                    </figure>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+                        )}
+                    </div>
+                )}
+
+            </div>
 
             <Dialog
                 open={Boolean(selectedMedia)}

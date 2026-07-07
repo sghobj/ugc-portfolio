@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectShowcaseVideos } from "./PortfolioShowcase";
+import { selectShowcaseVideos } from "./portfolioShowcaseSelectors";
 
 const createVideo = (id: string) => ({
     id,

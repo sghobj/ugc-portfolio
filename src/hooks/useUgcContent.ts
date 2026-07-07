@@ -48,6 +48,7 @@ type UgcWorkMediaEntry = {
   hook?: string | null
   goal?: string | null
   style?: string | null
+  instagramUrl?: string | null
   sortOrder?: number | null
   isCollaboration?: boolean | null
   categories?: UgcTagEntry[] | null
@@ -58,14 +59,36 @@ type UgcWorkBlock = UgcTextBlock & {
   media?: UgcWorkMediaEntry[] | null
 }
 
+type UgcTestimonialEntry = {
+  name?: string | null
+  role?: string | null
+  quote?: string | null
+}
+
 type UgcCollectionEntry = {
   id?: string | number | null
   name?: string | null
   description?: string | null
   story?: string | null
   isCollaboration?: boolean | null
+  client?: string | null
+  clientLogo?: string | null
+  location?: string | null
+  deliverables?: string | null
+  testimonial?: UgcTestimonialEntry | null
   insights?: UgcTagEntry[] | null
   media?: UgcWorkMediaEntry[] | null
+}
+
+type UgcBrandEntry = {
+  id?: string | number | null
+  name?: string | null
+  logo?: string | null
+  website?: string | null
+  location?: string | null
+  category?: string | null
+  relatedCollectionSlug?: string | null
+  relatedCollectionName?: string | null
 }
 
 type UgcPayload = {
@@ -77,6 +100,7 @@ type UgcPayload = {
   } | null
   myServices?: UgcServicesBlock | null
   myWork?: UgcWorkBlock | null
+  brands?: UgcBrandEntry[] | null
   collections?: UgcCollectionEntry[] | null
   highlights?: UgcWorkMediaEntry[] | null
   videos?: UgcWorkMediaEntry[] | null
@@ -158,6 +182,7 @@ export type UgcWorkMediaContent = {
   hook: string
   goal: string
   style: string
+  instagramUrl: string
   imageUrl: string
   sourceUrl: string
   provider: 'cloudinary' | 'bunny' | ''
@@ -181,12 +206,23 @@ export type UgcWorkContent = {
   media: UgcWorkMediaContent[]
 }
 
+export type UgcCaseStudyTestimonial = {
+  name: string
+  role: string
+  quote: string
+}
+
 export type UgcShowcaseCollectionContent = {
   id: string
   name: string
   description: string
   story: string
   isCollaboration: boolean
+  client: string
+  clientLogo: string
+  location: string
+  deliverables: string
+  testimonial: UgcCaseStudyTestimonial | null
   insights: string[]
   media: UgcWorkMediaContent[]
 }
@@ -197,11 +233,23 @@ export type UgcShowcaseContent = {
   videos: UgcWorkMediaContent[]
 }
 
+export type UgcBrandContent = {
+  id: string
+  name: string
+  logoUrl: string
+  website: string
+  location: string
+  category: string
+  relatedCollectionSlug: string
+  relatedCollectionName: string
+}
+
 export type UgcContent = {
   aboutMe: UgcSectionContent
   hero: UgcHeroContent
   myServices: UgcServicesContent
   myWork: UgcWorkContent
+  brands: UgcBrandContent[]
   showcase: UgcShowcaseContent
 }
 
@@ -233,6 +281,7 @@ const emptyContent: UgcContent = {
     text: '',
     media: [],
   },
+  brands: [],
   showcase: {
     collections: [],
     highlights: [],
@@ -286,6 +335,7 @@ const normalizeWorkMedia = (
           hook: asString(entry?.hook),
           goal: asString(entry?.goal),
           style: asString(entry?.style),
+          instagramUrl: asString(entry?.instagramUrl),
           imageUrl,
           sourceUrl,
           provider: asProvider(entry?.media?.provider),
@@ -312,6 +362,23 @@ const normalizeWorkMedia = (
           entry.playbackUrl.length > 0 ||
           entry.embedUrl.length > 0,
       ) ?? []
+  )
+}
+
+const normalizeBrands = (entries: UgcBrandEntry[] | null | undefined): UgcBrandContent[] => {
+  return (
+    entries
+      ?.map((entry, index) => ({
+        id: entry?.id != null ? String(entry.id) : `brand-${index + 1}`,
+        name: asString(entry?.name),
+        logoUrl: resolveStrapiAssetUrl(asString(entry?.logo), env.strapiBaseUrl),
+        website: asString(entry?.website),
+        location: asString(entry?.location),
+        category: asString(entry?.category),
+        relatedCollectionSlug: asString(entry?.relatedCollectionSlug),
+        relatedCollectionName: asString(entry?.relatedCollectionName),
+      }))
+      .filter((entry) => entry.name.length > 0) ?? []
   )
 }
 
@@ -347,6 +414,7 @@ export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcCont
       text: asString(ugc.myWork?.text),
       media: normalizeWorkMedia(ugc.myWork?.media, 'work-media'),
     },
+    brands: normalizeBrands(ugc.brands),
     showcase: {
       collections:
         ugc.collections?.map((collection, index) => {
@@ -361,12 +429,25 @@ export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcCont
             }),
           )
 
+          const testimonialQuote = asString(collection?.testimonial?.quote)
+
           return {
             id: collectionId,
             name: asString(collection?.name),
             description: asString(collection?.description),
             story: asString(collection?.story),
             isCollaboration: collectionIsCollab,
+            client: asString(collection?.client),
+            clientLogo: resolveStrapiAssetUrl(asString(collection?.clientLogo), env.strapiBaseUrl),
+            location: asString(collection?.location),
+            deliverables: asString(collection?.deliverables),
+            testimonial: testimonialQuote
+              ? {
+                  name: asString(collection?.testimonial?.name),
+                  role: asString(collection?.testimonial?.role),
+                  quote: testimonialQuote,
+                }
+              : null,
             insights:
               collection?.insights
                 ?.map((insight) => asString(insight?.name))

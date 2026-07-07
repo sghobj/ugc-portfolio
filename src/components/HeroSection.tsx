@@ -21,9 +21,9 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
     const lastName = lastNameParts.join(" ");
 
     return (
-        <section className="relative flex min-h-[88vh] items-center overflow-hidden pt-20 pb-12 lg:h-[calc(100dvh-4rem)] lg:min-h-0 lg:pt-20 lg:pb-10">
+        <section className="relative flex min-h-[70vh] items-center overflow-hidden bg-secondary/40 pt-20 pb-10 lg:min-h-[68vh] lg:pt-20 lg:pb-12">
             <div className="container mx-auto px-6 lg:px-16">
-                <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
+                <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(22rem,0.8fr)] lg:gap-14">
                     <motion.div
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -36,7 +36,7 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                             </p>
                         )}
                         {name && (
-                            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-light leading-[0.9] text-foreground mb-5">
+                            <h1 className="font-display text-4xl sm:text-5xl lg:text-[4.75rem] font-light leading-[0.95] text-foreground mb-5">
                                 {firstName}
                                 {lastName && (
                                     <>
@@ -54,7 +54,7 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                         )}
                         <div className="flex flex-wrap gap-3">
                             <a
-                                href="/#portfolio"
+                                href="/#video-showcase"
                                 className="inline-block border border-foreground text-foreground font-body text-sm tracking-wider uppercase px-6 py-3 hover:bg-foreground hover:text-background transition-all"
                             >
                                 View my Work
@@ -74,7 +74,7 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                         transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
                         className="order-1 lg:order-2"
                     >
-                        <div className="relative mx-auto w-full max-w-sm lg:ml-auto lg:max-w-[30rem]">
+                        <div className="relative mx-auto w-full max-w-[18rem] sm:max-w-sm lg:ml-auto lg:max-w-[25rem]">
                             <div className="relative aspect-[3/4] overflow-hidden">
                                 <img
                                     src={heroImage}
@@ -87,8 +87,6 @@ const HeroSection = ({ hero }: HeroSectionProps) => {
                                 />
                                 <PhotoProtectionOverlay />
                             </div>
-                            <div className="absolute -bottom-4 -left-4 w-24 h-24 border border-accent opacity-40" />
-                            <div className="absolute -top-4 -right-4 w-16 h-16 bg-accent opacity-20" />
                         </div>
                     </motion.div>
                 </div>

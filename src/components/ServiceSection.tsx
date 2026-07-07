@@ -247,7 +247,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
     return (
         <>
             {cmsPackages.length > 0 && (
-                <section id="services" className="py-16 lg:py-20">
+                <section id="services" className="py-12 lg:py-16">
                     <div className="container mx-auto px-6 lg:px-16">
                         {(sectionName || sectionTitle) && (
                             <motion.div
@@ -263,7 +263,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                     </p>
                                 )}
                                 {sectionTitle && (
-                                    <h2 className="font-display text-4xl sm:text-5xl font-light text-foreground italic">
+                                    <h2 className="font-display text-3xl sm:text-4xl font-light text-foreground italic">
                                         {sectionTitle}
                                     </h2>
                                 )}
@@ -353,7 +353,7 @@ const ServicesSection = ({ myServices }: ServicesSectionProps) => {
                                         onClick={() => openInquiryDialog(pkg.name)}
                                         className={`mt-6 inline-block self-start px-5 py-2.5 font-body text-sm uppercase tracking-wider transition-all ${
                                             pkg.featured
-                                                ? "bg-accent text-accent-foreground hover:opacity-80"
+                                                ? "bg-primary-foreground text-foreground hover:opacity-90"
                                                 : "border border-foreground text-foreground hover:bg-foreground hover:text-background"
                                         }`}
                                     >

@@ -31,6 +31,7 @@ query Ugc {
                 hook
                 goal
                 style
+                instagramUrl
                 sortOrder
                 categories {
                     name
@@ -50,12 +51,31 @@ query Ugc {
                 }
             }
         }
+        brands {
+            id
+            name
+            logo
+            website
+            location
+            category
+            relatedCollectionSlug
+            relatedCollectionName
+        }
         collections {
             id
             name
             description
             story
             isCollaboration
+            client
+            clientLogo
+            location
+            deliverables
+            testimonial {
+                name
+                role
+                quote
+            }
             insights {
                 name
             }
@@ -67,6 +87,7 @@ query Ugc {
                 hook
                 goal
                 style
+                instagramUrl
                 sortOrder
                 isCollaboration
                 categories {
@@ -95,6 +116,7 @@ query Ugc {
             hook
             goal
             style
+            instagramUrl
             sortOrder
             isCollaboration
             categories {
@@ -122,6 +144,7 @@ query Ugc {
             hook
             goal
             style
+            instagramUrl
             sortOrder
             isCollaboration
             categories {
