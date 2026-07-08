@@ -175,7 +175,17 @@ const groupReels = (reels: ReelVideo[]): Array<[string, ReelVideo[]]> => {
     });
 };
 
-const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
+const VideoReel = ({
+    reel,
+    index,
+    activeReelId,
+    onActivate,
+}: {
+    reel: ReelVideo;
+    index: number;
+    activeReelId: string | null;
+    onActivate: (id: string) => void;
+}) => {
     const [playing, setPlaying] = useState(false);
     const [paused, setPaused] = useState(false);
     const [muted, setMuted] = useState(false);
@@ -184,6 +194,7 @@ const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
     const hlsRef = useRef<Hls | null>(null);
     const hasDirect = reel.playbackUrl.length > 0;
     const isHls = isHlsUrl(reel.playbackUrl) || reel.mime === "application/x-mpegURL";
+    const isActive = activeReelId === reel.id;
 
     useEffect(() => {
         return () => {
@@ -192,7 +203,21 @@ const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
         };
     }, []);
 
+    useEffect(() => {
+        if (isActive || !playing) {
+            return;
+        }
+
+        videoRef.current?.pause();
+        hlsRef.current?.destroy();
+        hlsRef.current = null;
+        setPlaying(false);
+        setPaused(false);
+        setProgress(0);
+    }, [isActive, playing]);
+
     const startPlaying = () => {
+        onActivate(reel.id);
         setPlaying(true);
         if (!hasDirect) {
             return;
@@ -409,6 +434,7 @@ const VideoReel = ({ reel, index }: { reel: ReelVideo; index: number }) => {
 
 const VideoReels = ({ myWork, showcase }: VideoReelsProps) => {
     const sections = useMemo(() => groupReels(collectReels(myWork, showcase)), [myWork, showcase]);
+    const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
     if (sections.length === 0) {
         return null;
@@ -454,7 +480,13 @@ const VideoReels = ({ myWork, showcase }: VideoReelsProps) => {
                             <div className="-mx-6 overflow-x-auto px-6 pb-5 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                 <div className="flex snap-x snap-mandatory gap-4 sm:gap-5 lg:justify-center lg:gap-6">
                                     {reels.map((reel, index) => (
-                                        <VideoReel key={reel.id} reel={reel} index={index} />
+                                        <VideoReel
+                                            key={reel.id}
+                                            reel={reel}
+                                            index={index}
+                                            activeReelId={activeReelId}
+                                            onActivate={setActiveReelId}
+                                        />
                                     ))}
                                 </div>
                             </div>
