@@ -13,6 +13,7 @@ import PrivacyPage from "./pages/Privacy";
 import InstagramLogin from "./pages/InstagramLogin";
 import { InstagramPanel } from "./pages/InstagramPanel";
 import NotFound from "./pages/NotFound";
+import ClientPreview from "./pages/ClientPreview";
 import { ApiClientOutlet } from "@/components/ApiClientOutlet";
 import { env } from "@/config/env";
 
@@ -34,6 +35,7 @@ const App = () => (
                         </Route>
                         <Route path="/impressum" element={<ImpressumPage />} />
                         <Route path="/datenschutz" element={<PrivacyPage />} />
+                        <Route path="/preview/:token" element={<ClientPreview />} />
                         <Route element={<ApiClientOutlet />}>
                             <Route path="/" element={<Index />} />
                             <Route path={env.feedbackFormPath} element={<FeedbackPage />} />
