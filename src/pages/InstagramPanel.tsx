@@ -31,6 +31,8 @@ import {
   type UgcAdminTestimonial,
 } from '@/lib/ugcAdminApi'
 import { useNavigate } from 'react-router-dom'
+import ClientPreviewsManager from '@/components/admin/ClientPreviewsManager'
+import PreviewAssetsTab from '@/components/admin/PreviewAssetsTab'
 
 type UploadKind = 'photo' | 'video'
 
@@ -227,7 +229,7 @@ export const InstagramPanel = () => {
   const [isFeedbackLinkCopied, setIsFeedbackLinkCopied] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [assetsTab, setAssetsTab] = useState<'highlights' | 'videos' | 'collections' | 'unassigned'>('highlights')
+  const [assetsTab, setAssetsTab] = useState<'highlights' | 'videos' | 'collections' | 'unassigned' | 'preview'>('highlights')
   const [focalDraftByAssetId, setFocalDraftByAssetId] = useState<Record<number, FocalPoint>>({})
   const [activeFocalDrag, setActiveFocalDrag] = useState<{ assetId: number; pointerId: number } | null>(
     null,
@@ -260,7 +262,11 @@ export const InstagramPanel = () => {
     [assets],
   )
   const unassignedAssets = useMemo(
-    () => sortAssetsBySortOrder(assets.filter((a) => !a.placement && !a.collection)),
+    () => sortAssetsBySortOrder(assets.filter((a) => a.visibility !== 'preview' && !a.placement && !a.collection)),
+    [assets],
+  )
+  const previewAssets = useMemo(
+    () => sortAssetsBySortOrder(assets.filter((a) => a.visibility === 'preview')),
     [assets],
   )
   const collectionAssetGroups = useMemo(
@@ -1188,6 +1194,16 @@ export const InstagramPanel = () => {
             ) : null}
           </header>
 
+          {token ? (
+            <ClientPreviewsManager
+              token={token}
+              assets={assets}
+              onMessage={setMessage}
+              onError={setError}
+              onRefreshAssets={() => loadData(token)}
+            />
+          ) : null}
+
           <section className="grid gap-4 lg:grid-cols-2">
             <article className="rounded-lg border border-border bg-card p-5">
               <h2 className="font-display text-2xl italic text-foreground">Categories</h2>
@@ -1612,6 +1628,7 @@ export const InstagramPanel = () => {
                 ['videos', 'Cinematic Videos', videoAssets.length],
                 ['collections', 'Collections', collectionAssets.length],
                 ['unassigned', 'Unassigned', unassignedAssets.length],
+                ['preview', 'Preview', previewAssets.length],
               ] as const).map(([key, label, count]) => (
                 <button
                   type="button"
@@ -1660,6 +1677,15 @@ export const InstagramPanel = () => {
                   </article>
                 ))}
               </div>
+            ) : assetsTab === 'preview' ? (
+              <PreviewAssetsTab
+                token={token ?? ''}
+                assets={previewAssets}
+                collections={collections}
+                onMessage={setMessage}
+                onError={setError}
+                onChanged={() => (token ? loadData(token) : undefined)}
+              />
             ) : (
               <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {assetsTab === 'highlights' &&

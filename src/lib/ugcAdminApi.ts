@@ -17,6 +17,8 @@ export type UgcAdminCollection = {
 
 export type AssetPlacement = 'highlight' | 'video' | null
 
+export type AssetVisibility = 'public' | 'preview'
+
 export type UgcAdminAsset = {
   id: number
   storageProvider?: 'cloudinary' | 'bunny' | string
@@ -30,6 +32,7 @@ export type UgcAdminAsset = {
   focalPointX?: number | null
   focalPointY?: number | null
   placement?: AssetPlacement
+  visibility?: AssetVisibility
   sortOrder?: number
   secureUrl?: string | null
   thumbnailUrl?: string | null
@@ -505,4 +508,246 @@ export const reorderUgcAdminAssets = async (
     },
     'Failed to reorder assets',
   )
+}
+
+export type UgcAdminClient = {
+  id: number
+  name: string
+  slug?: string | null
+  location?: string | null
+  contactName?: string | null
+  email?: string | null
+  phone?: string | null
+  website?: string | null
+  instagram?: string | null
+  notes?: string | null
+  logoUrl?: string | null
+}
+
+export type UgcAdminClientInput = {
+  name: string
+  location?: string
+  contactName?: string
+  email?: string
+  phone?: string
+  website?: string
+  instagram?: string
+  notes?: string
+  logoFileId?: number
+}
+
+export const listUgcAdminClients = async (token: string): Promise<UgcAdminClient[]> => {
+  return await request<UgcAdminClient[]>(token, '/clients')
+}
+
+export const createUgcAdminClient = async (
+  token: string,
+  payload: UgcAdminClientInput,
+): Promise<UgcAdminClient> => {
+  return await request<UgcAdminClient>(
+    token,
+    '/clients',
+    { method: 'POST', body: JSON.stringify(payload) },
+    'Failed to create client',
+  )
+}
+
+export const uploadStrapiMediaFile = async (
+  token: string,
+  file: File,
+): Promise<{ id: number; url: string }> => {
+  const form = new FormData()
+  form.append('files', file)
+
+  const response = await fetch(`${getBaseUrl()}/api/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+
+  const payload = await parseJsonResponse(response)
+  if (!response.ok) {
+    throw new Error(parseError(payload, `Upload failed (${response.status})`))
+  }
+
+  const first = Array.isArray(payload) ? payload[0] : payload
+  const uploaded = first as { id?: number; url?: string }
+  if (!uploaded || typeof uploaded.id !== 'number') {
+    throw new Error('Upload did not return a file id.')
+  }
+
+  return { id: uploaded.id, url: typeof uploaded.url === 'string' ? uploaded.url : '' }
+}
+
+export type UgcAdminPreview = {
+  id: number
+  title: string
+  shareId: string
+  previewUrl?: string | null
+  clientId?: number | null
+  clientName?: string | null
+  intro?: string | null
+  offer?: string | null
+  ctaEmail?: string | null
+  accessCode?: string | null
+  expiresAt?: string | null
+  isActive: boolean
+  assetIds: number[]
+}
+
+export type UgcAdminPreviewInput = {
+  title: string
+  clientId?: number | null
+  clientName?: string
+  intro?: string
+  offer?: string
+  ctaEmail?: string
+  accessCode?: string
+  expiresAt?: string
+  isActive?: boolean
+  assetIds?: number[]
+}
+
+export const listUgcAdminPreviews = async (token: string): Promise<UgcAdminPreview[]> => {
+  return await request<UgcAdminPreview[]>(token, '/previews')
+}
+
+export const createUgcAdminPreview = async (
+  token: string,
+  payload: UgcAdminPreviewInput,
+): Promise<UgcAdminPreview> => {
+  return await request<UgcAdminPreview>(
+    token,
+    '/previews',
+    { method: 'POST', body: JSON.stringify(payload) },
+    'Failed to create preview',
+  )
+}
+
+export const updateUgcAdminPreview = async (
+  token: string,
+  previewId: number,
+  payload: UgcAdminPreviewInput,
+): Promise<UgcAdminPreview> => {
+  return await request<UgcAdminPreview>(
+    token,
+    `/previews/${previewId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+    'Failed to update preview',
+  )
+}
+
+export const deleteUgcAdminPreview = async (
+  token: string,
+  previewId: number,
+): Promise<{ id: number }> => {
+  return await request<{ id: number }>(
+    token,
+    `/previews/${previewId}`,
+    { method: 'DELETE' },
+    'Failed to delete preview',
+  )
+}
+
+export type UploadAssetOptions = {
+  title: string
+  kind: 'photo' | 'video'
+  visibility?: AssetVisibility
+  placement?: AssetPlacement
+  collectionId?: number | null
+  categoryIds?: number[]
+  uploadScope?: string
+  onProgress?: (ratio: number) => void
+}
+
+/** Full upload + metadata-save flow (Cloudinary photo / Bunny video), reusable across the admin. */
+export const uploadAndCreateAsset = async (
+  token: string,
+  file: File,
+  options: UploadAssetOptions,
+): Promise<UgcAdminAsset> => {
+  const title = options.title.trim() || file.name
+  const scope = options.uploadScope || undefined
+  const visibility = options.visibility ?? 'public'
+
+  if (options.kind === 'video') {
+    const started = await createBunnyVideoUploadStart(token, {
+      title,
+      filename: file.name,
+      mimeType: file.type || undefined,
+      size: file.size,
+      collectionName: scope,
+    })
+
+    await uploadFileToBunnyTus(file, started, options.onProgress)
+    const play = await getBunnyVideoPlayData(token, started.videoId)
+
+    return await createUgcAdminAsset(token, {
+      title,
+      kind: 'video',
+      storageProvider: 'bunny',
+      visibility,
+      placement: options.placement ?? null,
+      categoryIds: options.categoryIds ?? [],
+      storage: {
+        provider: 'bunny',
+        libraryId: play.libraryId || started.libraryId,
+        videoId: play.videoId || started.videoId,
+        status: play.status,
+        encodeProgress: play.encodeProgress,
+        embedUrl: play.embedUrl || started.embedUrl || undefined,
+        playbackUrl: play.playbackUrl || undefined,
+        fallbackUrl: play.fallbackUrl || undefined,
+        thumbnailUrl: play.thumbnailUrl || undefined,
+        bytes: play.bytes,
+        duration: play.duration,
+        width: play.width,
+        height: play.height,
+        raw: play.raw ?? play,
+      },
+    })
+  }
+
+  const signature = await createCloudinaryUploadSignature(token, {
+    filename: file.name,
+    kind: 'photo',
+    collectionName: scope,
+  })
+  const uploaded = await uploadFileToCloudinary(signature, file)
+
+  return await createUgcAdminAsset(token, {
+    title,
+    kind: 'photo',
+    storageProvider: 'cloudinary',
+    visibility,
+    placement: options.placement ?? null,
+    collectionId: options.collectionId ?? null,
+    categoryIds: options.categoryIds ?? [],
+    cloudinary: {
+      provider: 'cloudinary',
+      publicId: String(uploaded.public_id ?? ''),
+      resourceType: String(uploaded.resource_type || 'image'),
+      deliveryType: String(uploaded.type || 'upload'),
+      version: uploaded.version,
+      format: String(uploaded.format ?? ''),
+      bytes: uploaded.bytes,
+      width: uploaded.width,
+      height: uploaded.height,
+      duration: uploaded.duration,
+      secureUrl: String(uploaded.secure_url ?? ''),
+      raw: uploaded,
+    },
+  })
+}
+
+export const releaseUgcAdminAsset = async (
+  token: string,
+  assetId: number,
+  target: { placement?: AssetPlacement; collectionId?: number | null },
+): Promise<UgcAdminAsset> => {
+  return await updateUgcAdminAsset(token, assetId, {
+    visibility: 'public',
+    placement: target.placement ?? null,
+    ...(target.collectionId !== undefined ? { collectionId: target.collectionId } : {}),
+  })
 }
