@@ -751,3 +751,30 @@ export const releaseUgcAdminAsset = async (
     ...(target.collectionId !== undefined ? { collectionId: target.collectionId } : {}),
   })
 }
+
+export type UgcAdminSettings = {
+  showMetrics: boolean
+  perfPeriodLabel: string | null
+  perfViews: number | null
+  perfReached: number | null
+  perfNonFollowerPct: number | null
+  perfInteractions: number | null
+  perfFollowers: number | null
+  perfNote: string | null
+}
+
+export const getUgcAdminSettings = async (token: string): Promise<UgcAdminSettings> => {
+  return await request<UgcAdminSettings>(token, '/settings')
+}
+
+export const updateUgcAdminSettings = async (
+  token: string,
+  payload: Partial<UgcAdminSettings>,
+): Promise<UgcAdminSettings> => {
+  return await request<UgcAdminSettings>(
+    token,
+    '/settings',
+    { method: 'PATCH', body: JSON.stringify(payload) },
+    'Failed to save settings',
+  )
+}

@@ -26,6 +26,10 @@ const hlsVideo = (id: string, title: string, category: string): UgcWorkMediaCont
     height: 1920,
     mime: "application/x-mpegURL",
     isCollaboration: true,
+    metricViews: null,
+    metricLikes: null,
+    metricShares: null,
+    metricSaves: null,
     categories: [category],
 });
 

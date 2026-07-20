@@ -33,6 +33,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import ClientPreviewsManager from '@/components/admin/ClientPreviewsManager'
 import PreviewAssetsTab from '@/components/admin/PreviewAssetsTab'
+import MetricsSettings from '@/components/admin/MetricsSettings'
 
 type UploadKind = 'photo' | 'video'
 
@@ -1193,6 +1194,10 @@ export const InstagramPanel = () => {
               </p>
             ) : null}
           </header>
+
+          {token ? (
+            <MetricsSettings token={token} onMessage={setMessage} onError={setError} />
+          ) : null}
 
           {token ? (
             <ClientPreviewsManager

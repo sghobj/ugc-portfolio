@@ -51,6 +51,10 @@ type UgcWorkMediaEntry = {
   instagramUrl?: string | null
   sortOrder?: number | null
   isCollaboration?: boolean | null
+  metricViews?: number | null
+  metricLikes?: number | null
+  metricShares?: number | null
+  metricSaves?: number | null
   categories?: UgcTagEntry[] | null
   media?: UgcMediaAsset | null
 }
@@ -104,6 +108,16 @@ type UgcPayload = {
   collections?: UgcCollectionEntry[] | null
   highlights?: UgcWorkMediaEntry[] | null
   videos?: UgcWorkMediaEntry[] | null
+  showMetrics?: boolean | null
+  performance?: {
+    periodLabel?: string | null
+    views?: number | null
+    reached?: number | null
+    nonFollowerPct?: number | null
+    interactions?: number | null
+    followers?: number | null
+    note?: string | null
+  } | null
 }
 
 type UgcQueryData = {
@@ -196,6 +210,10 @@ export type UgcWorkMediaContent = {
   focalPointY?: number
   mime: string
   isCollaboration: boolean
+  metricViews: number | null
+  metricLikes: number | null
+  metricShares: number | null
+  metricSaves: number | null
   categories: string[]
 }
 
@@ -244,6 +262,16 @@ export type UgcBrandContent = {
   relatedCollectionName: string
 }
 
+export type UgcPerformance = {
+  periodLabel: string
+  views: number | null
+  reached: number | null
+  nonFollowerPct: number | null
+  interactions: number | null
+  followers: number | null
+  note: string
+}
+
 export type UgcContent = {
   aboutMe: UgcSectionContent
   hero: UgcHeroContent
@@ -251,6 +279,8 @@ export type UgcContent = {
   myWork: UgcWorkContent
   brands: UgcBrandContent[]
   showcase: UgcShowcaseContent
+  showMetrics: boolean
+  performance: UgcPerformance
 }
 
 type UseUgcContentResult = {
@@ -286,6 +316,16 @@ const emptyContent: UgcContent = {
     collections: [],
     highlights: [],
     videos: [],
+  },
+  showMetrics: false,
+  performance: {
+    periodLabel: '',
+    views: null,
+    reached: null,
+    nonFollowerPct: null,
+    interactions: null,
+    followers: null,
+    note: '',
   },
 }
 
@@ -349,6 +389,10 @@ const normalizeWorkMedia = (
           focalPointY: asNumber(entry?.media?.focalPointY),
           mime,
           isCollaboration: entry?.isCollaboration === true,
+          metricViews: asNumber(entry?.metricViews) ?? null,
+          metricLikes: asNumber(entry?.metricLikes) ?? null,
+          metricShares: asNumber(entry?.metricShares) ?? null,
+          metricSaves: asNumber(entry?.metricSaves) ?? null,
           categories:
             entry?.categories
               ?.map((tag) => asString(tag?.name))
@@ -457,6 +501,16 @@ export const normalizeUgcContent = (ugc: UgcPayload | null | undefined): UgcCont
         }) ?? [],
       highlights: normalizeWorkMedia(ugc.highlights, 'highlight'),
       videos: normalizeWorkMedia(ugc.videos, 'video'),
+    },
+    showMetrics: ugc.showMetrics === true,
+    performance: {
+      periodLabel: asString(ugc.performance?.periodLabel),
+      views: asNumber(ugc.performance?.views) ?? null,
+      reached: asNumber(ugc.performance?.reached) ?? null,
+      nonFollowerPct: asNumber(ugc.performance?.nonFollowerPct) ?? null,
+      interactions: asNumber(ugc.performance?.interactions) ?? null,
+      followers: asNumber(ugc.performance?.followers) ?? null,
+      note: asString(ugc.performance?.note),
     },
   }
 }

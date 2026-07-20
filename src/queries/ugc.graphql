@@ -33,6 +33,10 @@ query Ugc {
                 style
                 instagramUrl
                 sortOrder
+                metricViews
+                metricLikes
+                metricShares
+                metricSaves
                 categories {
                     name
                 }
@@ -90,6 +94,10 @@ query Ugc {
                 instagramUrl
                 sortOrder
                 isCollaboration
+                metricViews
+                metricLikes
+                metricShares
+                metricSaves
                 categories {
                     name
                 }
@@ -119,6 +127,10 @@ query Ugc {
             instagramUrl
             sortOrder
             isCollaboration
+            metricViews
+            metricLikes
+            metricShares
+            metricSaves
             categories {
                 name
             }
@@ -147,6 +159,10 @@ query Ugc {
             instagramUrl
             sortOrder
             isCollaboration
+            metricViews
+            metricLikes
+            metricShares
+            metricSaves
             categories {
                 name
             }
@@ -163,6 +179,16 @@ query Ugc {
                 focalPointX
                 focalPointY
             }
+        }
+        showMetrics
+        performance {
+            periodLabel
+            views
+            reached
+            nonFollowerPct
+            interactions
+            followers
+            note
         }
     }
 }
