@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import BrandsSection from "@/components/BrandsSection";
+import PerformanceBand from "@/components/PerformanceBand";
 import VideoReels from "@/components/VideoReels";
 import ContactSection from "@/components/ContactSection";
 import ServicesSection from "@/components/ServiceSection.tsx";
@@ -97,7 +98,12 @@ const Index = () => {
                 <>
                     <HeroSection hero={content.hero} />
                     <BrandsSection brands={content.brands} />
-                    <VideoReels myWork={content.myWork} showcase={content.showcase} />
+                    {content.showMetrics && <PerformanceBand performance={content.performance} />}
+                    <VideoReels
+                        myWork={content.myWork}
+                        showcase={content.showcase}
+                        showMetrics={content.showMetrics}
+                    />
                     {/*<PortfolioSection myWork={content.myWork} />*/}
                     <PortfolioShowcase myWork={content.myWork} showcase={content.showcase} />
                     <ServicesSection myServices={content.myServices} />

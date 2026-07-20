@@ -14,6 +14,14 @@ import type {
 type VideoReelsProps = {
     myWork?: UgcWorkContent;
     showcase?: UgcShowcaseContent;
+    showMetrics?: boolean;
+};
+
+type ReelMetrics = {
+    views: number | null;
+    likes: number | null;
+    shares: number | null;
+    saves: number | null;
 };
 
 type ReelVideo = {
@@ -28,6 +36,7 @@ type ReelVideo = {
     mime: string;
     isCollaboration: boolean;
     instagramUrl: string;
+    metrics: ReelMetrics;
 };
 
 /** Sections shown first, in this order. Anything else follows alphabetically; uncategorized last. */
@@ -128,6 +137,12 @@ const toReel = (item: UgcWorkMediaContent): ReelVideo | null => {
         mime: item.mime,
         isCollaboration: item.isCollaboration,
         instagramUrl: item.instagramUrl.trim(),
+        metrics: {
+            views: item.metricViews,
+            likes: item.metricLikes,
+            shares: item.metricShares,
+            saves: item.metricSaves,
+        },
     };
 };
 
@@ -175,16 +190,21 @@ const groupReels = (reels: ReelVideo[]): Array<[string, ReelVideo[]]> => {
     });
 };
 
+const compactMetric = (value: number): string =>
+    new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+
 const VideoReel = ({
     reel,
     index,
     activeReelId,
     onActivate,
+    showMetrics,
 }: {
     reel: ReelVideo;
     index: number;
     activeReelId: string | null;
     onActivate: (id: string) => void;
+    showMetrics?: boolean;
 }) => {
     const [playing, setPlaying] = useState(false);
     const [paused, setPaused] = useState(false);
@@ -416,6 +436,26 @@ const VideoReel = ({
                         {reel.subtitle}
                     </p>
                 )}
+                {showMetrics &&
+                    (reel.metrics.views != null ||
+                        reel.metrics.likes != null ||
+                        reel.metrics.shares != null ||
+                        reel.metrics.saves != null) && (
+                        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 font-body text-[0.55rem] uppercase tracking-[0.1em] text-[#fbf6ee]/85">
+                            {reel.metrics.views != null && (
+                                <span><strong className="font-semibold">{compactMetric(reel.metrics.views)}</strong> views</span>
+                            )}
+                            {reel.metrics.saves != null && (
+                                <span><strong className="font-semibold">{compactMetric(reel.metrics.saves)}</strong> saves</span>
+                            )}
+                            {reel.metrics.shares != null && (
+                                <span><strong className="font-semibold">{compactMetric(reel.metrics.shares)}</strong> shares</span>
+                            )}
+                            {reel.metrics.likes != null && (
+                                <span><strong className="font-semibold">{compactMetric(reel.metrics.likes)}</strong> likes</span>
+                            )}
+                        </div>
+                    )}
                 {reel.instagramUrl && (
                     <a
                         href={reel.instagramUrl}
@@ -432,7 +472,7 @@ const VideoReel = ({
     );
 };
 
-const VideoReels = ({ myWork, showcase }: VideoReelsProps) => {
+const VideoReels = ({ myWork, showcase, showMetrics }: VideoReelsProps) => {
     const sections = useMemo(() => groupReels(collectReels(myWork, showcase)), [myWork, showcase]);
     const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
@@ -486,6 +526,7 @@ const VideoReels = ({ myWork, showcase }: VideoReelsProps) => {
                                             index={index}
                                             activeReelId={activeReelId}
                                             onActivate={setActiveReelId}
+                                            showMetrics={showMetrics}
                                         />
                                     ))}
                                 </div>
