@@ -23,8 +23,8 @@ const PerformanceBand = ({ performance }: PerformanceBandProps) => {
     }
 
     return (
-        <section className="relative border-y border-border/60 bg-foreground py-12 text-primary-foreground lg:py-14">
-            <div className="absolute inset-0 opacity-[0.08] [background-image:radial-gradient(circle_at_50%_0%,hsl(var(--accent)),transparent_60%)]" />
+        <section className="luxury-grid-dark relative overflow-hidden bg-[#2c2521] py-12 text-[#fbf6ee] lg:py-14">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(179,100,58,0.18),transparent_32%),radial-gradient(circle_at_88%_0%,rgba(251,246,238,0.08),transparent_28%),linear-gradient(180deg,rgba(255,248,240,0.04),transparent_30%,rgba(0,0,0,0.18))]" />
             <div className="container relative mx-auto px-6 lg:px-16">
                 <motion.div
                     initial={{ opacity: 0, y: 18 }}
@@ -33,14 +33,14 @@ const PerformanceBand = ({ performance }: PerformanceBandProps) => {
                     transition={{ duration: 0.7 }}
                     className="mx-auto max-w-2xl text-center"
                 >
-                    <p className="font-body text-sm uppercase tracking-[0.22em] text-primary-foreground/60">
+                    <p className="font-body text-sm uppercase tracking-[0.22em] text-[#d7c9ba]/75">
                         Content Performance
                     </p>
-                    <h2 className="mt-1 font-display text-3xl font-light italic sm:text-4xl">
+                    <h2 className="mt-1 font-display text-3xl font-light italic text-[#fbf6ee] sm:text-4xl">
                         My content travels far beyond my audience
                     </h2>
                     {performance.periodLabel && (
-                        <p className="mt-2 font-body text-xs uppercase tracking-[0.18em] text-primary-foreground/50">
+                        <p className="mt-2 font-body text-xs uppercase tracking-[0.18em] text-[#d7c9ba]/70">
                             {performance.periodLabel}
                         </p>
                     )}
@@ -58,7 +58,7 @@ const PerformanceBand = ({ performance }: PerformanceBandProps) => {
                             <div className="font-display text-4xl font-light leading-none sm:text-5xl">
                                 {stat.value}
                             </div>
-                            <div className="mt-2 font-body text-[0.62rem] uppercase tracking-[0.2em] text-primary-foreground/60">
+                            <div className="mt-2 font-body text-[0.62rem] uppercase tracking-[0.2em] text-[#d7c9ba]/75">
                                 {stat.label}
                             </div>
                         </div>
@@ -66,7 +66,7 @@ const PerformanceBand = ({ performance }: PerformanceBandProps) => {
                 </motion.div>
 
                 {performance.note && (
-                    <p className="mx-auto mt-8 max-w-xl text-center font-body text-sm leading-relaxed text-primary-foreground/70">
+                    <p className="mx-auto mt-8 max-w-xl text-center font-body text-sm leading-relaxed text-[#d7c9ba]/74">
                         {performance.note}
                     </p>
                 )}
