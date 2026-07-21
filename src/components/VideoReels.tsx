@@ -481,8 +481,7 @@ const VideoReels = ({ myWork, showcase, showMetrics }: VideoReelsProps) => {
     }
 
     return (
-        <section id="video-showcase" className="luxury-grid-dark relative overflow-hidden bg-[#2c2521] py-12 text-[#fbf6ee] lg:py-14">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(179,100,58,0.18),transparent_32%),radial-gradient(circle_at_88%_0%,rgba(251,246,238,0.08),transparent_28%),linear-gradient(180deg,rgba(255,248,240,0.04),transparent_30%,rgba(0,0,0,0.18))]" />
+        <section id="video-showcase" className="relative overflow-hidden bg-[#2c2521] py-12 text-[#fbf6ee] lg:py-14">
             <div className="container relative mx-auto px-6 lg:px-16">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
