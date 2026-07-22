@@ -9,6 +9,7 @@ import { PhoneFrame } from "@/components/PhoneFrame";
 
 const INSTAGRAM_URL = "https://instagram.com/sarah_ghobj";
 const PORTFOLIO_URL = "https://ugc.sarah-ghobj.com";
+const WATERMARK_LABEL = "ugc.sarah-ghobj.com";
 
 type PreviewMedia = {
     id: string;
@@ -54,11 +55,20 @@ const viewUrl = (token: string, code?: string): string => {
     return code ? `${base}?code=${encodeURIComponent(code)}` : base;
 };
 
-const watermarkStyle = (text: string): React.CSSProperties => {
-    if (!text) {
-        return {};
-    }
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='190'><text x='10' y='110' transform='rotate(-28 10 110)' fill='rgba(255,255,255,0.34)' font-family='Arial, sans-serif' font-size='15' font-weight='600'>${text.replace(/[<>&]/g, "")}</text></svg>`;
+/** Small inlined copy of brand.logoUrl (60x60 PNG) — referencing the remote Cloudinary URL
+ * from inside a data-URI SVG used as a CSS background silently fails to load in most browsers,
+ * so the logo is embedded as base64 to keep the whole watermark self-contained. */
+const WATERMARK_LOGO_DATA_URI =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAAWlBMVEVHcEwQERELCwsFBgYGBgYJCQkGBgYFBgYFBQUFBgYGBgYGBgYGBgYGBgYGBgYHBwcGBgYICAgGBgYGBgYGBgYHBwcGBgYICAgICAcIBwcFBgYHBgcGBgYFBgZex0IaAAAAHXRSTlMAAQfebw7n/rLzyGahSqtbUiZ7h488lxYtHvs31fJG3EsAAAEySURBVBgZ7cFJkpwwAATAQkKUxL6vXf//pqehD+MTNCeHg0w8Ho//XzS0ZWrtKy3bweArU5fwTXwL44zLojiQa9rHVZV1PlBkg4uMJ0O34MMUnpxxUUnaBr9trxnX1NQ642/G4RovedxlpRJ3vajE4BaHUVJucEe8NEFUOuCGvES1UmKaua33v8U449mhSCSSYVxqK2pH0eOM12rg2oT6EWKXxYdR8jgzkhsAU+SBlHp81GKOM5nYYWcqK3HAoSNbnFlWhgkHl4o9dtGLHHCqlMoIh0LMsatJG+FUE8Q+wm4QY7wtCVnhgoxk6fCWK5nwY7aij3BFSzLJjCs80waAa4OUOlxTJyKTMasb45oqDxS9w1VTH0jxQ7JVhC+4rEx4sHkR4VvRtBV1sU14PB6Pf9UfbfgTATnMXysAAAAASUVORK5CYII=";
+
+const watermarkStyle = (): React.CSSProperties => {
+    const label = WATERMARK_LABEL.replace(/[<>&]/g, "");
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='210'>
+        <g transform='rotate(-28 20 120)' opacity='0.95'>
+            <image href='${WATERMARK_LOGO_DATA_URI}' x='10' y='96' width='18' height='18' opacity='0.8' />
+            <text x='34' y='111' fill='rgba(255,255,255,0.52)' font-family='Arial, sans-serif' font-size='14' font-weight='600'>${label}</text>
+        </g>
+    </svg>`;
     return {
         backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
         backgroundRepeat: "repeat",
@@ -270,7 +280,7 @@ const ClientPreview = () => {
     }
 
     const data = state.data;
-    const wm = watermarkStyle(data.watermark);
+    const wm = watermarkStyle();
 
     return (
         <div className="min-h-screen bg-background text-foreground" onContextMenu={(e) => e.preventDefault()}>
