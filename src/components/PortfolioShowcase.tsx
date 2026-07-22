@@ -417,7 +417,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const [mediaSequence, setMediaSequence] = useState<StoryMedia[]>([]);
     const [mediaSequenceIndex, setMediaSequenceIndex] = useState(-1);
     const [collectionApi, setCollectionApi] = useState<CarouselApi>();
-    const [currentCollectionSlide, setCurrentCollectionSlide] = useState(1);
+    const [selectedCollectionIndex, setSelectedCollectionIndex] = useState(0);
     const [collectionGalleryPage, setCollectionGalleryPage] = useState(0);
     const [collectionGalleryPageSize, setCollectionGalleryPageSize] = useState(DESKTOP_COLLECTION_GALLERY_PAGE_SIZE);
     const [activePhotoCategory, setActivePhotoCategory] = useState("");
@@ -519,7 +519,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     const activeHorizontalPhotos = activePhotos.filter((item) => item.width && item.height && item.width > item.height);
     const activeVerticalPhotos = activePhotos.filter((item) => !item.width || !item.height || item.width <= item.height);
     const activeCollectionIndex = collections.length > 0
-        ? Math.min(Math.max(currentCollectionSlide - 1, 0), collections.length - 1)
+        ? Math.min(Math.max(selectedCollectionIndex, 0), collections.length - 1)
         : -1;
     const activeCollection = activeCollectionIndex >= 0 ? collections[activeCollectionIndex] : null;
     const activeCollectionGalleryPages = useMemo(
@@ -582,23 +582,13 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
     }, [activePhotoCategory, photoSections]);
 
     useEffect(() => {
-        if (!collectionApi) {
+        if (collections.length === 0) {
             return;
         }
-
-        const onSelect = () => {
-            setCurrentCollectionSlide(collectionApi.selectedScrollSnap() + 1);
-        };
-
-        onSelect();
-        collectionApi.on("select", onSelect);
-        collectionApi.on("reInit", onSelect);
-
-        return () => {
-            collectionApi.off("select", onSelect);
-            collectionApi.off("reInit", onSelect);
-        };
-    }, [collectionApi]);
+        if (selectedCollectionIndex > collections.length - 1) {
+            setSelectedCollectionIndex(collections.length - 1);
+        }
+    }, [collections.length, selectedCollectionIndex]);
 
     const openMedia = (entry: StoryMedia, sequence?: StoryMedia[]) => {
         const nextSequence = sequence && sequence.length > 0 ? sequence : [];
@@ -787,7 +777,7 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                         Swipe for more
                                     </p>
                                     <p className="rounded-full border border-border bg-background px-3 py-1 font-body text-[0.65rem] text-muted-foreground shadow-sm">
-                                        {currentCollectionSlide} / {collections.length}
+                                        {activeCollectionIndex + 1} / {collections.length}
                                     </p>
                                     <div className="ml-auto flex items-center gap-3">
                                         <CarouselPrevious className="!static !left-auto !top-auto !h-10 !w-10 !translate-y-0 rounded-full border-accent/70 bg-background text-foreground" />
@@ -804,13 +794,16 @@ const PortfolioShowcase = ({ myWork, showcase }: PortfolioShowcaseProps) => {
                                     return (
                                         <CarouselItem
                                             key={collection.id}
-                                            className="flex basis-[94%] pl-4 sm:basis-[82%] md:basis-[70%] lg:basis-[48%]"
+                                            className="flex basis-[88%] pl-4 sm:basis-[58%] md:basis-[44%] lg:basis-[34%] xl:basis-[29%]"
                                         >
                                             <button
                                                 type="button"
-                                                onClick={() => collectionApi?.scrollTo(index)}
+                                                onClick={() => {
+                                                    setSelectedCollectionIndex(index);
+                                                    collectionApi?.scrollTo(index);
+                                                }}
                                                 className={cn(
-                                                    "group relative flex h-full min-h-[26rem] w-full flex-col overflow-hidden border bg-muted text-left transition-opacity lg:min-h-[24rem]",
+                                                    "group relative flex aspect-[4/5] w-full flex-col overflow-hidden border bg-muted text-left transition-opacity",
                                                     isActive ? "border-accent/70 opacity-100" : "border-border opacity-80",
                                                 )}
                                             >
