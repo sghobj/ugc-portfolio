@@ -5,6 +5,7 @@ import { Globe, Instagram, Loader2, Lock, Play } from "lucide-react";
 import { env } from "@/config/env";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 import { MarkdownContent } from "@/components/MarkdownContent";
+import { PhoneFrame } from "@/components/PhoneFrame";
 
 const INSTAGRAM_URL = "https://instagram.com/sarah_ghobj";
 const PORTFOLIO_URL = "https://ugc.sarah-ghobj.com";
@@ -107,7 +108,6 @@ const PreviewVideo = ({ media }: { media: PreviewMedia }) => {
                 ref={videoRef}
                 poster={media.poster || undefined}
                 playsInline
-                loop
                 controls={playing}
                 controlsList="nodownload noplaybackrate"
                 disablePictureInPicture
@@ -274,7 +274,7 @@ const ClientPreview = () => {
 
     return (
         <div className="min-h-screen bg-background text-foreground" onContextMenu={(e) => e.preventDefault()}>
-            <div className="mx-auto max-w-5xl px-6 py-14 lg:py-20">
+            <div className="mx-auto max-w-3xl px-6 py-10 lg:py-14">
                 <header className="mx-auto max-w-2xl text-center">
                     <p className="font-body text-sm uppercase tracking-[0.22em] text-muted-foreground">
                         A preview for {data.clientName || "you"}
@@ -314,35 +314,7 @@ const ClientPreview = () => {
                     </div>
                 </header>
 
-                <div className="mt-12 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4">
-                    {data.media.map((item) => (
-                        <figure
-                            key={item.id}
-                            className="group relative aspect-[3/4] select-none overflow-hidden bg-muted"
-                            onContextMenu={(e) => e.preventDefault()}
-                        >
-                            {item.kind === "video" ? (
-                                <PreviewVideo media={item} />
-                            ) : (
-                                <>
-                                    <img
-                                        src={item.url}
-                                        alt={item.title}
-                                        loading="lazy"
-                                        decoding="async"
-                                        {...protectedImageProps}
-                                        className="absolute inset-0 h-full w-full object-cover"
-                                    />
-                                    <PhotoProtectionOverlay />
-                                </>
-                            )}
-                            {/* watermark overlay */}
-                            <span aria-hidden className="pointer-events-none absolute inset-0 z-30" style={wm} />
-                        </figure>
-                    ))}
-                </div>
-
-                <div className="mx-auto mt-14 max-w-xl rounded-lg border border-border bg-card/60 p-6 text-center sm:p-8">
+                <div className="mx-auto mt-8 max-w-xl rounded-lg border border-border bg-card/60 p-6 text-center sm:p-8">
                         {data.offer && (
                             <>
                                 <p className="font-body text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
@@ -392,6 +364,55 @@ const ClientPreview = () => {
                             </button>
                         )}
                     </div>
+
+                {data.media.length > 0 && (
+                    <div className="mt-10 flex flex-wrap justify-center gap-3 sm:gap-4">
+                        {data.media.map((item) => {
+                            const isVerticalVideo =
+                                item.kind === "video" && (!item.width || !item.height || item.height >= item.width);
+
+                            if (isVerticalVideo) {
+                                return (
+                                    <div key={item.id} className="w-36 shrink-0 sm:w-44 lg:w-48">
+                                        <PhoneFrame
+                                            showReelChrome={false}
+                                            className="shadow-[0_20px_45px_-18px_rgba(0,0,0,0.55)]"
+                                        >
+                                            <PreviewVideo media={item} />
+                                            <span aria-hidden className="pointer-events-none absolute inset-0 z-30" style={wm} />
+                                        </PhoneFrame>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <figure
+                                    key={item.id}
+                                    className="group relative aspect-[3/4] w-36 shrink-0 select-none overflow-hidden bg-muted sm:w-44 lg:w-48"
+                                    onContextMenu={(e) => e.preventDefault()}
+                                >
+                                    {item.kind === "video" ? (
+                                        <PreviewVideo media={item} />
+                                    ) : (
+                                        <>
+                                            <img
+                                                src={item.url}
+                                                alt={item.title}
+                                                loading="lazy"
+                                                decoding="async"
+                                                {...protectedImageProps}
+                                                className="absolute inset-0 h-full w-full object-cover"
+                                            />
+                                            <PhotoProtectionOverlay />
+                                        </>
+                                    )}
+                                    {/* watermark overlay */}
+                                    <span aria-hidden className="pointer-events-none absolute inset-0 z-30" style={wm} />
+                                </figure>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

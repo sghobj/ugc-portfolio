@@ -109,7 +109,7 @@ const optimizePoster = (url: string): string =>
 
 const withAutoplay = (embedUrl: string): string => {
     const separator = embedUrl.includes("?") ? "&" : "?";
-    return `${embedUrl}${separator}autoplay=true&loop=true&muted=false&preload=true`;
+    return `${embedUrl}${separator}autoplay=true&loop=false&muted=false&preload=true`;
 };
 
 const toReel = (item: UgcWorkMediaContent): ReelVideo | null => {
@@ -307,7 +307,6 @@ const VideoReel = ({
                             src={isHls ? undefined : reel.playbackUrl}
                             poster={reel.poster || undefined}
                             playsInline
-                            loop
                             muted={muted}
                             preload="none"
                             onContextMenu={(event) => event.preventDefault()}
