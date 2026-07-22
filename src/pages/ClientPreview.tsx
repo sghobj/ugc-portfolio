@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Hls from "hls.js";
-import { Globe, Instagram, Loader2, Lock, Play } from "lucide-react";
+import { Globe, Instagram, Loader2, Lock, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { env } from "@/config/env";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 import { MarkdownContent } from "@/components/MarkdownContent";
@@ -77,6 +77,9 @@ const watermarkStyle = (): React.CSSProperties => {
 
 const PreviewVideo = ({ media }: { media: PreviewMedia }) => {
     const [playing, setPlaying] = useState(false);
+    const [paused, setPaused] = useState(false);
+    const [muted, setMuted] = useState(false);
+    const [progress, setProgress] = useState(0);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef = useRef<Hls | null>(null);
     const src = media.playbackUrl || "";
@@ -112,16 +115,34 @@ const PreviewVideo = ({ media }: { media: PreviewMedia }) => {
         });
     };
 
+    const togglePlay = () => {
+        const video = videoRef.current;
+        if (!video) return;
+        if (video.paused) {
+            video.play().catch(() => undefined);
+        } else {
+            video.pause();
+        }
+    };
+
+    const onTimeUpdate = () => {
+        const video = videoRef.current;
+        if (!video || !video.duration) return;
+        setProgress((video.currentTime / video.duration) * 100);
+    };
+
     return (
         <div className="relative h-full w-full" onContextMenu={(e) => e.preventDefault()}>
             <video
                 ref={videoRef}
                 poster={media.poster || undefined}
                 playsInline
-                controls={playing}
-                controlsList="nodownload noplaybackrate"
-                disablePictureInPicture
+                muted={muted}
                 preload="none"
+                onContextMenu={(e) => e.preventDefault()}
+                onTimeUpdate={onTimeUpdate}
+                onPlay={() => setPaused(false)}
+                onPause={() => setPaused(true)}
                 className="h-full w-full bg-black object-cover"
             />
             {!playing && (
@@ -129,12 +150,76 @@ const PreviewVideo = ({ media }: { media: PreviewMedia }) => {
                     type="button"
                     onClick={start}
                     aria-label="Play"
-                    className="absolute inset-0 grid place-items-center"
+                    className="absolute inset-0 z-40 grid place-items-center"
                 >
                     <span className="grid h-14 w-14 place-items-center rounded-full border border-white/70 bg-black/35 text-white backdrop-blur-sm">
                         <Play className="ml-0.5 h-5 w-5" fill="currentColor" />
                     </span>
                 </button>
+            )}
+
+            {playing && (
+                <div className="pointer-events-none absolute inset-0 z-40 overflow-hidden">
+                    {/* tap anywhere to play / pause */}
+                    <button
+                        type="button"
+                        onClick={togglePlay}
+                        aria-label={paused ? "Play" : "Pause"}
+                        className="pointer-events-auto absolute inset-0"
+                    >
+                        {paused && (
+                            <span className="absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/70 bg-black/35 text-white backdrop-blur-sm">
+                                <Play className="ml-0.5 h-5 w-5" fill="currentColor" />
+                            </span>
+                        )}
+                    </button>
+
+                    {/* control bar — sits safely inside the rounded screen */}
+                    <div className="pointer-events-auto absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3.5 pt-8">
+                        <div className="flex items-center gap-2.5 text-white">
+                            <button
+                                type="button"
+                                onClick={togglePlay}
+                                aria-label={paused ? "Play" : "Pause"}
+                                className="shrink-0"
+                            >
+                                {paused ? (
+                                    <Play className="h-4 w-4" fill="currentColor" />
+                                ) : (
+                                    <Pause className="h-4 w-4" fill="currentColor" />
+                                )}
+                            </button>
+                            <div
+                                role="slider"
+                                aria-label="Seek"
+                                aria-valuenow={Math.round(progress)}
+                                tabIndex={0}
+                                onClick={(event) => {
+                                    const video = videoRef.current;
+                                    if (!video || !video.duration) return;
+                                    const rect = event.currentTarget.getBoundingClientRect();
+                                    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+                                    video.currentTime = ratio * video.duration;
+                                    setProgress(ratio * 100);
+                                }}
+                                className="relative h-1 flex-1 cursor-pointer rounded-full bg-white/30"
+                            >
+                                <div
+                                    className="absolute inset-y-0 left-0 rounded-full bg-accent"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setMuted((current) => !current)}
+                                aria-label={muted ? "Unmute" : "Mute"}
+                                className="shrink-0"
+                            >
+                                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -385,7 +470,7 @@ const ClientPreview = () => {
 
                             if (isVerticalVideo) {
                                 return (
-                                    <div key={item.id} className="w-36 shrink-0 sm:w-44 lg:w-48">
+                                    <div key={item.id} className="w-44 shrink-0 sm:w-56 lg:w-72">
                                         <PhoneFrame
                                             showReelChrome={false}
                                             className="shadow-[0_20px_45px_-18px_rgba(0,0,0,0.55)]"
