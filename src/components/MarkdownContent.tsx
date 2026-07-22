@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { cn } from "@/lib/utils";
 
 type MarkdownContentProps = {
@@ -116,7 +117,7 @@ export const MarkdownContent = ({ content, className, components }: MarkdownCont
 
     return (
         <div className={cn(className)}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ ...defaultComponents, ...components }}>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={{ ...defaultComponents, ...components }}>
                 {sanitizedContent}
             </ReactMarkdown>
         </div>
