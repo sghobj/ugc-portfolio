@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Hls from "hls.js";
-import { Instagram, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Bookmark, Eye, Heart, Instagram, Pause, Play, Share2, Volume2, VolumeX } from "lucide-react";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
 import { buildCloudinaryImageUrl, isCloudinaryUrl } from "@/lib/cloudinary";
@@ -441,18 +441,30 @@ const VideoReel = ({
                         reel.metrics.likes != null ||
                         reel.metrics.shares != null ||
                         reel.metrics.saves != null) && (
-                        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 font-body text-[0.55rem] uppercase tracking-[0.1em] text-[#fbf6ee]/85">
+                        <div className="mt-2 flex items-center justify-center gap-3 font-body text-[0.6rem] tracking-[0.02em] text-[#fbf6ee]/85">
                             {reel.metrics.views != null && (
-                                <span><strong className="font-semibold">{compactMetric(reel.metrics.views)}</strong> views</span>
-                            )}
-                            {reel.metrics.saves != null && (
-                                <span><strong className="font-semibold">{compactMetric(reel.metrics.saves)}</strong> saves</span>
-                            )}
-                            {reel.metrics.shares != null && (
-                                <span><strong className="font-semibold">{compactMetric(reel.metrics.shares)}</strong> shares</span>
+                                <span className="inline-flex items-center gap-1" title="Views">
+                                    <Eye className="h-3 w-3 text-[#d7c9ba]/70" strokeWidth={1.75} />
+                                    {compactMetric(reel.metrics.views)}
+                                </span>
                             )}
                             {reel.metrics.likes != null && (
-                                <span><strong className="font-semibold">{compactMetric(reel.metrics.likes)}</strong> likes</span>
+                                <span className="inline-flex items-center gap-1" title="Likes">
+                                    <Heart className="h-3 w-3 text-[#d7c9ba]/70" strokeWidth={1.75} />
+                                    {compactMetric(reel.metrics.likes)}
+                                </span>
+                            )}
+                            {reel.metrics.shares != null && (
+                                <span className="inline-flex items-center gap-1" title="Shares">
+                                    <Share2 className="h-3 w-3 text-[#d7c9ba]/70" strokeWidth={1.75} />
+                                    {compactMetric(reel.metrics.shares)}
+                                </span>
+                            )}
+                            {reel.metrics.saves != null && (
+                                <span className="inline-flex items-center gap-1" title="Saves">
+                                    <Bookmark className="h-3 w-3 text-[#d7c9ba]/70" strokeWidth={1.75} />
+                                    {compactMetric(reel.metrics.saves)}
+                                </span>
                             )}
                         </div>
                     )}
