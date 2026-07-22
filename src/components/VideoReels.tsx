@@ -481,7 +481,7 @@ const VideoReels = ({ myWork, showcase, showMetrics }: VideoReelsProps) => {
     }
 
     return (
-        <section id="video-showcase" className="relative overflow-hidden bg-[#2c2521] py-12 text-[#fbf6ee] lg:py-14">
+        <div className="relative pb-12 pt-12 lg:pb-14 lg:pt-14">
             <div className="container relative mx-auto px-6 lg:px-16">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -534,7 +534,7 @@ const VideoReels = ({ myWork, showcase, showMetrics }: VideoReelsProps) => {
                     ))}
                 </div>
             </div>
-        </section>
+        </div>
     );
 };
 

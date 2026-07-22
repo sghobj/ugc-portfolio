@@ -23,7 +23,7 @@ const PerformanceBand = ({ performance }: PerformanceBandProps) => {
     }
 
     return (
-        <section className="relative overflow-hidden bg-[#2c2521] py-12 text-[#fbf6ee] lg:py-14">
+        <div className="relative pb-12 pt-12 lg:pb-14 lg:pt-14">
             <div className="container relative mx-auto px-6 lg:px-16">
                 <motion.div
                     initial={{ opacity: 0, y: 18 }}
@@ -70,7 +70,7 @@ const PerformanceBand = ({ performance }: PerformanceBandProps) => {
                     </p>
                 )}
             </div>
-        </section>
+        </div>
     );
 };
 

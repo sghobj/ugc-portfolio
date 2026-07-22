@@ -98,12 +98,18 @@ const Index = () => {
                 <>
                     <HeroSection hero={content.hero} />
                     <BrandsSection brands={content.brands} />
-                    {content.showMetrics && <PerformanceBand performance={content.performance} />}
-                    <VideoReels
-                        myWork={content.myWork}
-                        showcase={content.showcase}
-                        showMetrics={content.showMetrics}
-                    />
+                    <section
+                        id="video-showcase"
+                        className="luxury-grid-dark relative overflow-hidden bg-[#2c2521] text-[#fbf6ee]"
+                    >
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(179,100,58,0.18),transparent_32%),radial-gradient(circle_at_88%_0%,rgba(251,246,238,0.08),transparent_28%),linear-gradient(180deg,rgba(255,248,240,0.04),transparent_30%,rgba(0,0,0,0.18))]" />
+                        {content.showMetrics && <PerformanceBand performance={content.performance} />}
+                        <VideoReels
+                            myWork={content.myWork}
+                            showcase={content.showcase}
+                            showMetrics={content.showMetrics}
+                        />
+                    </section>
                     {/*<PortfolioSection myWork={content.myWork} />*/}
                     <PortfolioShowcase myWork={content.myWork} showcase={content.showcase} />
                     <ServicesSection myServices={content.myServices} />
