@@ -274,8 +274,9 @@ const ClientPreview = () => {
 
     return (
         <div className="min-h-screen bg-background text-foreground" onContextMenu={(e) => e.preventDefault()}>
-            <div className="mx-auto max-w-3xl px-6 py-10 lg:py-14">
-                <header className="mx-auto max-w-2xl text-center">
+            <div className="mx-auto max-w-3xl px-6 py-10 lg:max-w-5xl lg:py-14">
+                <div className="lg:grid lg:grid-cols-[1.15fr_1fr] lg:items-start lg:gap-12">
+                <header className="mx-auto max-w-2xl text-center lg:mx-0 lg:max-w-none lg:text-left">
                     <p className="font-body text-sm uppercase tracking-[0.22em] text-muted-foreground">
                         A preview for {data.clientName || "you"}
                     </p>
@@ -285,14 +286,14 @@ const ClientPreview = () => {
                     {data.intro && (
                         <MarkdownContent
                             content={data.intro}
-                            className="mx-auto mt-4 max-w-xl text-left font-body text-base leading-relaxed text-muted-foreground"
+                            className="mx-auto mt-4 max-w-xl text-left font-body text-base leading-relaxed text-muted-foreground lg:mx-0 lg:max-w-none"
                         />
                     )}
                     <p className="mt-4 inline-flex items-center gap-1.5 font-body text-[0.6rem] uppercase tracking-[0.16em] text-muted-foreground">
                         <Lock className="h-3 w-3" />
                         Private · view-only sample
                     </p>
-                    <div className="mt-3 flex items-center justify-center gap-4">
+                    <div className="mt-3 flex items-center justify-center gap-4 lg:justify-start">
                         <a
                             href={INSTAGRAM_URL}
                             target="_blank"
@@ -314,7 +315,7 @@ const ClientPreview = () => {
                     </div>
                 </header>
 
-                <div className="mx-auto mt-8 max-w-xl rounded-lg border border-border bg-card/60 p-6 text-center sm:p-8">
+                <div className="mx-auto mt-8 max-w-xl rounded-lg border border-border bg-card/60 p-6 text-center sm:p-8 lg:sticky lg:top-10 lg:mx-0 lg:mt-0 lg:max-w-none">
                         {data.offer && (
                             <>
                                 <p className="font-body text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
@@ -364,6 +365,7 @@ const ClientPreview = () => {
                             </button>
                         )}
                     </div>
+                </div>
 
                 {data.media.length > 0 && (
                     <div className="mt-10 flex flex-wrap justify-center gap-3 sm:gap-4">
