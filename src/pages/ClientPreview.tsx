@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Hls from "hls.js";
-import { Loader2, Lock, Play } from "lucide-react";
+import { Globe, Instagram, Loader2, Lock, Play } from "lucide-react";
 import { env } from "@/config/env";
 import { PhotoProtectionOverlay, protectedImageProps } from "@/components/PhotoProtection";
+import { MarkdownContent } from "@/components/MarkdownContent";
+
+const INSTAGRAM_URL = "https://instagram.com/sarah_ghobj";
+const PORTFOLIO_URL = "https://ugc.sarah-ghobj.com";
 
 type PreviewMedia = {
     id: string;
@@ -279,14 +283,35 @@ const ClientPreview = () => {
                         {data.title}
                     </h1>
                     {data.intro && (
-                        <p className="mx-auto mt-4 max-w-xl whitespace-pre-wrap font-body text-base leading-relaxed text-muted-foreground">
-                            {data.intro}
-                        </p>
+                        <MarkdownContent
+                            content={data.intro}
+                            className="mx-auto mt-4 max-w-xl text-left font-body text-base leading-relaxed text-muted-foreground"
+                        />
                     )}
                     <p className="mt-4 inline-flex items-center gap-1.5 font-body text-[0.6rem] uppercase tracking-[0.16em] text-muted-foreground">
                         <Lock className="h-3 w-3" />
                         Private · view-only sample
                     </p>
+                    <div className="mt-3 flex items-center justify-center gap-4">
+                        <a
+                            href={INSTAGRAM_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Sarah Ghobj on Instagram"
+                            className="text-muted-foreground transition-colors hover:text-accent"
+                        >
+                            <Instagram className="h-4 w-4" strokeWidth={1.75} />
+                        </a>
+                        <a
+                            href={PORTFOLIO_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Sarah Ghobj's portfolio"
+                            className="text-muted-foreground transition-colors hover:text-accent"
+                        >
+                            <Globe className="h-4 w-4" strokeWidth={1.75} />
+                        </a>
+                    </div>
                 </header>
 
                 <div className="mt-12 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4">
@@ -323,9 +348,10 @@ const ClientPreview = () => {
                                 <p className="font-body text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
                                     The offer
                                 </p>
-                                <p className="mt-2 whitespace-pre-wrap font-body text-sm leading-relaxed text-foreground">
-                                    {data.offer}
-                                </p>
+                                <MarkdownContent
+                                    content={data.offer}
+                                    className="mt-3 text-left font-body text-sm leading-relaxed text-foreground"
+                                />
                             </>
                         )}
 

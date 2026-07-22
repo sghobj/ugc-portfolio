@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Bold, Italic, List } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -41,6 +42,7 @@ type FormState = {
     offer: string;
     isActive: boolean;
     assetIds: number[];
+    shareId: string;
 };
 
 const emptyForm: FormState = {
@@ -53,7 +55,102 @@ const emptyForm: FormState = {
     offer: "",
     isActive: true,
     assetIds: [],
+    shareId: "",
 };
+
+const slugifyPreview = (value: string): string =>
+    value
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80);
+
+/** Wraps the current textarea selection with a marker (e.g. ** for bold). Falls back to placeholder text if nothing is selected. */
+const wrapSelection = (
+    textarea: HTMLTextAreaElement | null,
+    value: string,
+    onChange: (next: string) => void,
+    marker: string,
+    placeholder: string,
+) => {
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? value.length;
+    const end = textarea.selectionEnd ?? value.length;
+    const selected = value.slice(start, end) || placeholder;
+    const next = `${value.slice(0, start)}${marker}${selected}${marker}${value.slice(end)}`;
+    onChange(next);
+    requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + marker.length, start + marker.length + selected.length);
+    });
+};
+
+/** Prefixes each selected line with "- " to turn it into a markdown bullet list. */
+const insertBulletList = (
+    textarea: HTMLTextAreaElement | null,
+    value: string,
+    onChange: (next: string) => void,
+) => {
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? value.length;
+    const end = textarea.selectionEnd ?? value.length;
+    const selected = value.slice(start, end) || "List item";
+    const bulleted = selected
+        .split("\n")
+        .map((line) => (line.trim().length > 0 ? `- ${line.replace(/^-\s*/, "")}` : line))
+        .join("\n");
+    const next = `${value.slice(0, start)}${bulleted}${value.slice(end)}`;
+    onChange(next);
+    requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start, start + bulleted.length);
+    });
+};
+
+const toolbarButtonClass =
+    "grid h-7 w-7 place-items-center rounded border border-neutral-300 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900";
+
+const FormatToolbar = ({
+    textarea,
+    value,
+    onChange,
+}: {
+    textarea: HTMLTextAreaElement | null;
+    value: string;
+    onChange: (next: string) => void;
+}) => (
+    <div className="flex items-center gap-1">
+        <button
+            type="button"
+            title="Bold"
+            aria-label="Bold"
+            onClick={() => wrapSelection(textarea, value, onChange, "**", "bold text")}
+            className={toolbarButtonClass}
+        >
+            <Bold className="h-3.5 w-3.5" />
+        </button>
+        <button
+            type="button"
+            title="Italic"
+            aria-label="Italic"
+            onClick={() => wrapSelection(textarea, value, onChange, "*", "italic text")}
+            className={toolbarButtonClass}
+        >
+            <Italic className="h-3.5 w-3.5" />
+        </button>
+        <button
+            type="button"
+            title="Bullet list"
+            aria-label="Bullet list"
+            onClick={() => insertBulletList(textarea, value, onChange)}
+            className={toolbarButtonClass}
+        >
+            <List className="h-3.5 w-3.5" />
+        </button>
+    </div>
+);
 
 const pad = (value: number): string => String(value).padStart(2, "0");
 
@@ -108,6 +205,8 @@ const ClientPreviewsManager = ({
     const [assetFilter, setAssetFilter] = useState("");
     const [clientDialogOpen, setClientDialogOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<UgcAdminPreview | null>(null);
+    const introRef = useRef<HTMLTextAreaElement>(null);
+    const offerRef = useRef<HTMLTextAreaElement>(null);
 
     const notify = useCallback((msg: string) => onMessage?.(msg), [onMessage]);
     const fail = useCallback((msg: string) => onError?.(msg), [onError]);
@@ -171,6 +270,7 @@ const ClientPreviewsManager = ({
             offer: preview.offer ?? "",
             isActive: preview.isActive,
             assetIds: [...preview.assetIds],
+            shareId: preview.shareId ?? "",
         });
         setEditingId(preview.id);
     };
@@ -235,6 +335,7 @@ const ClientPreviewsManager = ({
             offer: form.offer,
             isActive: form.isActive,
             assetIds: form.assetIds,
+            shareId: form.shareId.trim(),
         };
 
         setSaving(true);
@@ -394,18 +495,47 @@ const ClientPreviewsManager = ({
                             </label>
                         </div>
                         <div className="sm:col-span-2">
-                            <label className={labelClass}>Intro / pitch</label>
+                            <label className={labelClass}>URL slug</label>
+                            <input
+                                className={inputClass}
+                                value={form.shareId}
+                                onChange={(e) => setForm({ ...form, shareId: slugifyPreview(e.target.value) })}
+                                placeholder="belvedere-hotel-spa"
+                            />
+                            <p className="mt-1 truncate text-xs text-neutral-500">
+                                ugc.sarah-ghobj.com/preview/
+                                <span className="text-neutral-700">{form.shareId || "(leave blank for a random private link)"}</span>
+                            </p>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <div className="mb-1 flex items-center justify-between">
+                                <label className={labelClass}>Intro / pitch</label>
+                                <FormatToolbar
+                                    textarea={introRef.current}
+                                    value={form.intro}
+                                    onChange={(next) => setForm((current) => ({ ...current, intro: next }))}
+                                />
+                            </div>
                             <textarea
-                                className={`${inputClass} min-h-20`}
+                                ref={introRef}
+                                className={`${inputClass} min-h-48 resize-y`}
                                 value={form.intro}
                                 onChange={(e) => setForm({ ...form, intro: e.target.value })}
                                 placeholder="A warm intro shown above the gallery…"
                             />
                         </div>
                         <div className="sm:col-span-2">
-                            <label className={labelClass}>Offer / price</label>
+                            <div className="mb-1 flex items-center justify-between">
+                                <label className={labelClass}>Offer / price</label>
+                                <FormatToolbar
+                                    textarea={offerRef.current}
+                                    value={form.offer}
+                                    onChange={(next) => setForm((current) => ({ ...current, offer: next }))}
+                                />
+                            </div>
                             <textarea
-                                className={`${inputClass} min-h-16`}
+                                ref={offerRef}
+                                className={`${inputClass} min-h-28 resize-y`}
                                 value={form.offer}
                                 onChange={(e) => setForm({ ...form, offer: e.target.value })}
                                 placeholder="e.g. 2 Reels + 15 photos — €350"
@@ -414,12 +544,12 @@ const ClientPreviewsManager = ({
                     </div>
 
                     <div className="mt-5">
-                        <div className="mb-2 flex items-center justify-between gap-3">
+                        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <label className={labelClass}>
                                 Media in this preview ({form.assetIds.length} selected)
                             </label>
                             <input
-                                className="w-48 rounded border border-neutral-300 px-2 py-1 text-xs"
+                                className="w-full rounded border border-neutral-300 px-2 py-1.5 text-xs sm:w-48"
                                 value={assetFilter}
                                 onChange={(e) => setAssetFilter(e.target.value)}
                                 placeholder="Filter assets…"
@@ -446,7 +576,7 @@ const ClientPreviewsManager = ({
                                 Uploads are <strong>private</strong> (preview-only) until you release them to your profile.
                             </span>
                         </div>
-                        <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto rounded border border-neutral-200 bg-neutral-50 p-2 sm:grid-cols-5 lg:grid-cols-6">
+                        <div className="grid max-h-80 grid-cols-2 gap-3 overflow-y-auto rounded border border-neutral-200 bg-neutral-50 p-3 sm:grid-cols-4 sm:gap-2 sm:p-2 lg:grid-cols-6">
                             {filteredAssets.map((asset) => {
                                 const selected = form.assetIds.includes(asset.id);
                                 return (
@@ -454,33 +584,41 @@ const ClientPreviewsManager = ({
                                         type="button"
                                         key={asset.id}
                                         onClick={() => toggleAsset(asset.id)}
-                                        title={asset.title}
-                                        className={`relative aspect-square overflow-hidden rounded border-2 ${
-                                            selected ? "border-neutral-900" : "border-transparent"
+                                        className={`group flex flex-col overflow-hidden rounded border-2 bg-white text-left transition-colors ${
+                                            selected ? "border-neutral-900" : "border-transparent hover:border-neutral-300"
                                         }`}
                                     >
-                                        {assetThumb(asset) ? (
-                                            <img src={assetThumb(asset)} alt={asset.title} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <span className="grid h-full w-full place-items-center bg-neutral-200 text-[0.6rem] text-neutral-500">
-                                                {asset.kind}
-                                            </span>
-                                        )}
-                                        {asset.kind === "video" && (
-                                            <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[0.55rem] text-white">
-                                                ▶
-                                            </span>
-                                        )}
-                                        {asset.visibility === "preview" && (
-                                            <span className="absolute bottom-1 left-1 rounded bg-amber-500/90 px-1 text-[0.5rem] font-medium uppercase text-white">
-                                                preview
-                                            </span>
-                                        )}
-                                        {selected && (
-                                            <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-neutral-900 text-[0.6rem] text-white">
-                                                ✓
-                                            </span>
-                                        )}
+                                        <span className="relative block aspect-square w-full overflow-hidden bg-neutral-200">
+                                            {assetThumb(asset) ? (
+                                                <img
+                                                    src={assetThumb(asset)}
+                                                    alt={asset.title}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <span className="grid h-full w-full place-items-center text-[0.6rem] text-neutral-500">
+                                                    {asset.kind}
+                                                </span>
+                                            )}
+                                            {asset.kind === "video" && (
+                                                <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[0.55rem] text-white">
+                                                    ▶
+                                                </span>
+                                            )}
+                                            {asset.visibility === "preview" && (
+                                                <span className="absolute bottom-1 left-1 rounded bg-amber-500/90 px-1 text-[0.5rem] font-medium uppercase text-white">
+                                                    preview
+                                                </span>
+                                            )}
+                                            {selected && (
+                                                <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-neutral-900 text-[0.65rem] text-white">
+                                                    ✓
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="truncate px-1.5 py-1 text-[0.65rem] leading-tight text-neutral-600">
+                                            {asset.title || "Untitled"}
+                                        </span>
                                     </button>
                                 );
                             })}
@@ -521,10 +659,10 @@ const ClientPreviewsManager = ({
                         return (
                             <li
                                 key={preview.id}
-                                className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-200 bg-white p-3"
+                                className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3 sm:flex-row sm:items-center"
                             >
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <span className="truncate font-medium text-neutral-900">{preview.title}</span>
                                         {!preview.isActive && (
                                             <span className="rounded bg-neutral-200 px-1.5 py-0.5 text-[0.6rem] uppercase text-neutral-600">
@@ -548,18 +686,18 @@ const ClientPreviewsManager = ({
                                         {preview.expiresAt ? ` · until ${new Date(preview.expiresAt).toLocaleDateString()}` : ""}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
                                     <button
                                         type="button"
                                         onClick={() => copyLink(preview)}
-                                        className="rounded border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-100"
+                                        className="flex-1 rounded border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-700 hover:bg-neutral-100 sm:flex-none sm:py-1"
                                     >
                                         Copy link
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => startEdit(preview)}
-                                        className="rounded border border-neutral-300 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-100"
+                                        className="flex-1 rounded border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-700 hover:bg-neutral-100 sm:flex-none sm:py-1"
                                     >
                                         Edit
                                     </button>
@@ -567,7 +705,7 @@ const ClientPreviewsManager = ({
                                         type="button"
                                         onClick={() => setDeleteTarget(preview)}
                                         disabled={busyId === preview.id}
-                                        className="rounded border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                        className="flex-1 rounded border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 sm:flex-none sm:py-1"
                                     >
                                         Delete
                                     </button>

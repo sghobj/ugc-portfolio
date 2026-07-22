@@ -11,6 +11,17 @@ type MarkdownContentProps = {
 
 const defaultComponents: Components = {
     p: ({ children }: { children?: ReactNode }) => <p className="mb-4 last:mb-0">{children}</p>,
+    h1: ({ children }: { children?: ReactNode }) => (
+        <h3 className="mb-2 mt-6 font-display text-lg font-semibold text-foreground first:mt-0">{children}</h3>
+    ),
+    h2: ({ children }: { children?: ReactNode }) => (
+        <h3 className="mb-2 mt-6 font-display text-lg font-semibold text-foreground first:mt-0">{children}</h3>
+    ),
+    h3: ({ children }: { children?: ReactNode }) => (
+        <h4 className="mb-1.5 mt-5 border-t border-border/60 pt-4 font-body text-sm font-semibold uppercase tracking-[0.08em] text-foreground first:mt-0 first:border-t-0 first:pt-0">
+            {children}
+        </h4>
+    ),
     ul: ({ children }: { children?: ReactNode }) => (
         <ul className="mb-4 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
     ),

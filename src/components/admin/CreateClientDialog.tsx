@@ -112,7 +112,7 @@ export const CreateClientDialog = ({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-lg">
-                <DialogHeader>
+                <DialogHeader className="sticky -top-6 -mx-6 -mt-6 border-b border-neutral-200 bg-white px-6 pb-4 pt-6">
                     <DialogTitle className="font-display text-2xl italic">New client</DialogTitle>
                     <DialogDescription>
                         Create a client here to attach it to previews (and reuse it later).
@@ -164,7 +164,7 @@ export const CreateClientDialog = ({
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 pt-2">
+                    <div className="sticky -bottom-6 -mx-6 -mb-6 flex items-center justify-end gap-3 border-t border-neutral-200 bg-white px-6 py-3">
                         <button
                             type="button"
                             onClick={() => onOpenChange(false)}

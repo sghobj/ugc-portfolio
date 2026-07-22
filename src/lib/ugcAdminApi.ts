@@ -606,6 +606,7 @@ export type UgcAdminPreviewInput = {
   expiresAt?: string
   isActive?: boolean
   assetIds?: number[]
+  shareId?: string
 }
 
 export const listUgcAdminPreviews = async (token: string): Promise<UgcAdminPreview[]> => {
