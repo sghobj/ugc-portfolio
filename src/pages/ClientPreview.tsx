@@ -420,6 +420,37 @@ const ClientPreview = () => {
                                     content={data.offer}
                                     className="mt-3 text-left font-body text-sm leading-relaxed text-foreground"
                                 />
+
+                                <div className="mt-6 border-t border-border/60 pt-5 text-left">
+                                    <p className="font-body text-[0.62rem] uppercase tracking-[0.24em] text-muted-foreground">
+                                        How it works
+                                    </p>
+                                    <ol className="mt-3 space-y-2.5 font-body text-sm leading-relaxed text-muted-foreground">
+                                        <li className="flex gap-2.5">
+                                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border text-[0.65rem] font-semibold text-foreground">
+                                                1
+                                            </span>
+                                            <span>
+                                                Click "I'm interested" below — add any notes or questions you have.
+                                            </span>
+                                        </li>
+                                        <li className="flex gap-2.5">
+                                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border text-[0.65rem] font-semibold text-foreground">
+                                                2
+                                            </span>
+                                            <span>I'll send you the payment details.</span>
+                                        </li>
+                                        <li className="flex gap-2.5">
+                                            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border text-[0.65rem] font-semibold text-foreground">
+                                                3
+                                            </span>
+                                            <span>
+                                                Once payment is received, you'll get a WeTransfer link with the
+                                                finished video and a PDF license for the music used.
+                                            </span>
+                                        </li>
+                                    </ol>
+                                </div>
                             </>
                         )}
 
