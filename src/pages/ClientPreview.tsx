@@ -101,11 +101,22 @@ const PreviewVideo = ({ media }: { media: PreviewMedia }) => {
             }
             const nativeHls = video.canPlayType("application/vnd.apple.mpegurl") !== "";
             if (isHls && !nativeHls && Hls.isSupported()) {
-                const hls = new Hls();
+                // Skip the usual low-quality-first bandwidth ramp-up — this is a client-facing
+                // sample where first-impression quality matters more than saving bandwidth.
+                const hls = new Hls({ startLevel: -1, capLevelToPlayerSize: false });
                 hlsRef.current = hls;
                 hls.loadSource(src);
                 hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => undefined));
+                hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+                    if (data.levels.length > 0) {
+                        const highestIndex = data.levels.reduce(
+                            (bestIdx, level, idx, levels) => (level.bitrate > levels[bestIdx].bitrate ? idx : bestIdx),
+                            0,
+                        );
+                        hls.currentLevel = highestIndex;
+                    }
+                    video.play().catch(() => undefined);
+                });
                 return;
             }
             if (!video.src) {
@@ -504,7 +515,7 @@ const ClientPreview = () => {
                                     <div key={item.id} className="w-44 shrink-0 sm:w-56 lg:w-72">
                                         <PhoneFrame
                                             showReelChrome={false}
-                                            className="shadow-[0_20px_45px_-18px_rgba(0,0,0,0.55)]"
+                                            className="aspect-[9/16] shadow-[0_20px_45px_-18px_rgba(0,0,0,0.55)]"
                                         >
                                             <PreviewVideo media={item} />
                                             <span aria-hidden className="pointer-events-none absolute inset-0 z-30" style={wm} />

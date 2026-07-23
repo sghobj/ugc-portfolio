@@ -254,11 +254,22 @@ const VideoReel = ({
 
             if (isHls && !nativeHls && Hls.isSupported()) {
                 if (!hlsRef.current) {
-                    const hls = new Hls();
+                    // Skip the usual low-quality-first bandwidth ramp-up — start at the
+                    // highest available rendition instead of easing up from a low bitrate.
+                    const hls = new Hls({ startLevel: -1, capLevelToPlayerSize: false });
                     hlsRef.current = hls;
                     hls.loadSource(reel.playbackUrl);
                     hls.attachMedia(video);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => undefined));
+                    hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+                        if (data.levels.length > 0) {
+                            const highestIndex = data.levels.reduce(
+                                (bestIdx, level, idx, levels) => (level.bitrate > levels[bestIdx].bitrate ? idx : bestIdx),
+                                0,
+                            );
+                            hls.currentLevel = highestIndex;
+                        }
+                        video.play().catch(() => undefined);
+                    });
                 } else {
                     video.play().catch(() => undefined);
                 }
