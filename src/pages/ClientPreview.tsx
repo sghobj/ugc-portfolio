@@ -515,7 +515,7 @@ const ClientPreview = () => {
                                     <div key={item.id} className="w-44 shrink-0 sm:w-56 lg:w-72">
                                         <PhoneFrame
                                             showReelChrome={false}
-                                            className="aspect-[9/16] shadow-[0_20px_45px_-18px_rgba(0,0,0,0.55)]"
+                                            className="aspect-[9/18] shadow-[0_20px_45px_-18px_rgba(0,0,0,0.55)]"
                                         >
                                             <PreviewVideo media={item} />
                                             <span aria-hidden className="pointer-events-none absolute inset-0 z-30" style={wm} />
