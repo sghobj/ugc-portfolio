@@ -438,7 +438,7 @@ const ClientPreview = () => {
                                             <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border text-[0.65rem] font-semibold text-foreground">
                                                 2
                                             </span>
-                                            <span>I'll send you the payment details.</span>
+                                            <span>I'll send you an invoice with payment details.</span>
                                         </li>
                                         <li className="flex gap-2.5">
                                             <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border text-[0.65rem] font-semibold text-foreground">
